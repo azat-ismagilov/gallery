@@ -10,8 +10,6 @@ import { useAppContext } from "../AppContext";
 import MyModal from "./MyModal";
 import PhotoGridByYear from "./PhotoGridByYear";
 
-import "../../styles/Body.css";
-
 const Body = () => {
     const { data, setFullscreenPhotoId, setIsSlideShow, desktop } = useAppContext();
     const scrollRef = useRef(null);
@@ -103,8 +101,48 @@ const Body = () => {
     }, [fullscreenPhoto]);
 
     return (
-        <div className="body" ref={scrollRef}>
-            {desktop && data.text && <h1 style={{ width: "100%" }}>{data.text}</h1>}
+        <Box
+            ref={scrollRef}
+            sx={{
+                height: 'calc(100vh - 150px)',
+                gap: '2em',
+                overflow: 'auto',
+                borderRadius: '8px',
+                '& .control': {
+                    background: 'rgba(0, 0, 0, 0.5)', // Example for --opacityBGColor
+                    position: 'fixed',
+                    top: '40px',
+                    right: '40px',
+                    cursor: 'pointer',
+                },
+                '&::-webkit-scrollbar': {
+                    width: '10px',
+                    borderRadius: '3px',
+                },
+                '&::-webkit-scrollbar-track': {
+                    backgroundColor: '#f0f0f0', // Example for --additionalBGColor
+                },
+                '&::-webkit-scrollbar-thumb': {
+                    backgroundColor: '#c0c0c0', // Example for --mainBGColor
+                    outline: '1px solid #a0a0a0', // Example for --additionalColor
+                    borderRadius: '3px',
+                },
+                '& .masonry': {
+                    display: 'flex',
+                    flexFlow: 'row wrap',
+                    gap: '3px',
+                    width: '100%',
+                },
+                '& .preview': {
+                    objectFit: 'cover',
+                    objectPosition: 'top',
+                    width: '100%',
+                    borderRadius: '8px',
+                    height: '100%',
+                }
+            }}
+        >
+            {desktop && data.text && <Typography variant="h1" sx={{ width: "100%" }}>{data.text}</Typography>}
             <InfiniteScroll
                 loadMore={loadMorePhotos}
                 hasMore={hasMorePhotos()}
@@ -127,7 +165,7 @@ const Body = () => {
                 rightArrow={rightArrow}
                 leftArrow={leftArrow}
             />}
-        </div>
+        </Box>
     );
 };
 
