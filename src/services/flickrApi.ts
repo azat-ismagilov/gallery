@@ -12,10 +12,18 @@ import type {
   FlickrSearchResponse,
   Photo,
 } from "@/types/gallery";
+import {
+  buildFlickrPhotoMethodUrl,
+  buildFlickrSearchUrl,
+  selectFlickrPhotoFromSizes,
+} from "@/utils/flickrUrl";
 import { LruCache } from "@/utils/lruCache";
 
-const EXTRAS =
-  "tags,machine_tags,url_m,url_c,url_l,url_o,description,date_upload,date_taken";
+const credentials = {
+  apiKey: api_key,
+  userId: user_id,
+  perPage: PER_PAGE,
+};
 
 const searchCache = new LruCache<string, FlickrSearchResponse>(100);
 const photoInfoCache = new LruCache<string, FlickrPhotoInfoResponse>(200);
@@ -27,55 +35,6 @@ const inFlightPhotoInfo = new Map<
 
 export interface FetchConfig {
   signal?: AbortSignal;
-}
-
-function buildQuery(params: Record<string, string | number>): string {
-  const queryString = Object.keys(params)
-    .map((key) => `${key}=${params[key]}`)
-    .join("&");
-  return `https://api.flickr.com/services/rest?${queryString}`;
-}
-
-function buildSearchUrl(
-  tags: ReadonlyArray<readonly [string, string]> = [],
-  page = 1,
-  text = "",
-): string {
-  const params: Record<string, string | number> = {
-    method: "flickr.photos.search",
-    api_key,
-    user_id,
-    tag_mode: "all",
-    page,
-    sort: "date-taken-desc",
-    per_page: PER_PAGE,
-    extras: EXTRAS,
-    format: "json",
-    nojsoncallback: "1",
-  };
-  if (tags.length > 0) {
-    params.tags = tags
-      .map(([first, second]) => {
-        const sanitized = second.replace(/[,:]/g, "");
-        return `${first}$${sanitized}`;
-      })
-      .join(",");
-  }
-  if (text) {
-    params.text = text;
-  }
-  return buildQuery(params);
-}
-
-function buildPhotoMethodUrl(method: string, id: string): string {
-  return buildQuery({
-    method,
-    api_key,
-    user_id,
-    format: "json",
-    nojsoncallback: "1",
-    photo_id: id,
-  });
 }
 
 async function fetchJson<T>(
@@ -119,7 +78,8 @@ export function getAllWithEvent(
   config: FetchConfig = {},
 ): Promise<FlickrSearchResponse | null> {
   return fetchSearchCached(
-    buildSearchUrl(
+    buildFlickrSearchUrl(
+      credentials,
       [
         [TAG_ALBUM, year],
         [TAG_EVENT, event],
@@ -137,7 +97,8 @@ export function getAllWithTeam(
   config: FetchConfig = {},
 ): Promise<FlickrSearchResponse | null> {
   return fetchSearchCached(
-    buildSearchUrl(
+    buildFlickrSearchUrl(
+      credentials,
       [
         [TAG_ALBUM, year],
         [TAG_TEAM, team],
@@ -155,7 +116,7 @@ export function getAllWithPerson(
   config: FetchConfig = {},
 ): Promise<FlickrSearchResponse | null> {
   return fetchSearchCached(
-    buildSearchUrl([[TAG_ALBUM, year]], page, person),
+    buildFlickrSearchUrl(credentials, [[TAG_ALBUM, year]], page, person),
     config,
   );
 }
@@ -166,7 +127,12 @@ export function getAllWithText(
   config: FetchConfig = {},
 ): Promise<FlickrSearchResponse | null> {
   return fetchSearchCached(
-    buildSearchUrl([], page, `${text}%20and%20${TAG_ALBUM}$`),
+    buildFlickrSearchUrl(
+      credentials,
+      [],
+      page,
+      `${text}%20and%20${TAG_ALBUM}$`,
+    ),
     config,
   );
 }
@@ -184,14 +150,13 @@ export async function getPhotoInfo(
     return cached;
   }
 
-  // Deduplicate concurrent requests (e.g. prefetch + active view) for the same photo ID.
   const existing = inFlightPhotoInfo.get(id);
   if (existing) {
     return existing;
   }
 
   const request = fetchJson<FlickrPhotoInfoResponse>(
-    buildPhotoMethodUrl("flickr.photos.getInfo", id),
+    buildFlickrPhotoMethodUrl(credentials, "flickr.photos.getInfo", id),
     config,
   )
     .then((result) => {
@@ -225,38 +190,12 @@ export async function getPhotoById(
   }
 
   const response = await fetchJson<FlickrPhotoSizesResponse>(
-    buildPhotoMethodUrl("flickr.photos.getSizes", id),
+    buildFlickrPhotoMethodUrl(credentials, "flickr.photos.getSizes", id),
     config,
   );
-  const sizes = response?.sizes?.size;
-  if (!sizes || sizes.length === 0) {
-    return null;
+  const photo = selectFlickrPhotoFromSizes(id, response?.sizes?.size);
+  if (photo) {
+    photoByIdCache.set(id, photo);
   }
-
-  const original = sizes.find((s) => s.label === "Original") ?? sizes.at(-1);
-  const large =
-    sizes.find((s) => s.label === "Large") ??
-    sizes.find((s) => s.label === "Large 1600") ??
-    original;
-  const medium =
-    sizes.find((s) => s.label === "Medium") ??
-    sizes.find((s) => s.label === "Medium 800") ??
-    large ??
-    original;
-
-  if (!original || !large || !medium) {
-    return null;
-  }
-
-  const photo: Photo = {
-    id,
-    url_preview: medium.source,
-    url: large.source,
-    origin: original.source,
-    width: Number(large.width) || Number(original.width) || 0,
-    height: Number(large.height) || Number(original.height) || 0,
-    year: "Unknown",
-  };
-  photoByIdCache.set(id, photo);
   return photo;
 }

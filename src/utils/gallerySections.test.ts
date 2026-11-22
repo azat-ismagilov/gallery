@@ -121,4 +121,36 @@ describe("gallerySections", () => {
     expect(getNextEventName(events, "Unknown")).toBe("Photo Tour");
     expect(getNextEventName(events, null)).toBeNull();
   });
+
+  it("skips empty groups, places unknown years last, and avoids redundant year header for single-year search", () => {
+    const singleYear = buildGallerySections(
+      [
+        { event: "Empty Event", photos: [] },
+        {
+          event: null,
+          photos: [makePhoto("a", "2024"), makePhoto("b", "2024")],
+        },
+      ],
+      PLACES,
+    );
+    expect(singleYear.sections).toHaveLength(1);
+    expect(singleYear.sections[0]?.title).toBeNull();
+
+    const withUnknown = buildGallerySections(
+      [
+        {
+          event: null,
+          photos: [makePhoto("u", "Unknown"), makePhoto("y", "2023")],
+        },
+      ],
+      PLACES,
+    );
+    expect(withUnknown.sections.map((s) => s.title)).toEqual([
+      "2023",
+      "Unknown",
+    ]);
+    expect(getNextPhotoIndex(0, 0, { wrap: true })).toBeNull();
+    expect(getNextPhotoIndex(0, 1, { wrap: true })).toBe(0);
+    expect(getNextPhotoIndex(0, 1, { wrap: false })).toBeNull();
+  });
 });
