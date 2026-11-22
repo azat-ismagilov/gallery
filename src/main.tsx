@@ -1,11 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter } from "react-router";
 
-import App from "@/App";
-import ErrorBoundary from "@/components/common/ErrorBoundary";
-import { AppContextProvider } from "@/context/AppContext";
-import { PhotoInfoProvider } from "@/context/PhotoInfoContext";
+import App from "@/app/App";
+import { AppProviders } from "@/app/Providers";
+
+import "@/styles/global.css";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -14,14 +13,8 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <ErrorBoundary>
-      <BrowserRouter>
-        <AppContextProvider>
-          <PhotoInfoProvider>
-            <App />
-          </PhotoInfoProvider>
-        </AppContextProvider>
-      </BrowserRouter>
-    </ErrorBoundary>
+    <AppProviders>
+      <App />
+    </AppProviders>
   </React.StrictMode>,
 );

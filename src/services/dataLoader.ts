@@ -3,7 +3,7 @@ import {
   getRawPeopleData,
   getRawTeamData,
 } from "@/config/gallery";
-import UniqueList from "@/utils/uniqueList";
+import UniqueList from "@/shared/utils/uniqueList";
 
 const eventCache = new Map<string, Promise<string[]>>();
 const teamCache = new Map<string, Promise<string[]>>();
