@@ -1,16 +1,17 @@
-import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
-import { IconButton } from "@mui/material";
-import { type MouseEvent, useCallback, useEffect } from "react";
+import { Box, Dialog } from "@mui/material";
+import { useCallback, useEffect, useRef } from "react";
 
 import { useAppContext } from "@/context/AppContext";
 import { usePhotoInfo } from "@/context/PhotoInfoContext";
+import { useLocalStorageBoolean } from "@/hooks/useLocalStorage";
 import { useSlideshow } from "@/hooks/useSlideshow";
 import type { Photo } from "@/types/gallery";
-import ImageWithFaceSelection from "./ImageWithFaceSelection";
-import PhotoInfoPanel from "./PhotoInfoPanel";
-import ViewerControls from "./ViewerControls";
+import PhotoInfoSidebar from "./PhotoInfoSidebar";
+import PhotoStage from "./PhotoStage";
+import PhotoViewerToolbar from "./PhotoViewerToolbar";
 
-import "@/styles/Body.css";
+const DESKTOP_INFO_STORAGE_KEY = "gallery:infoSidebarOpen";
+const MOBILE_INFO_PEEK_HEIGHT = 56;
 
 interface PhotoViewerProps {
   photo: Photo;
@@ -26,9 +27,14 @@ interface PhotoViewerProps {
 }
 
 /**
- * Unified fullscreen viewer for both standard inspection and slideshow mode.
- * Slideshow is simply a playback state rather than a separate component tree,
- * so the image stage, keyboard navigation, and preloading remain seamless.
+ * Unified Material UI fullscreen photo viewer for desktop, mobile, and slideshow.
+ *
+ * Uses ONE shared component tree (`PhotoViewerToolbar` + `PhotoStage` +
+ * `PhotoInfoSidebar`) whose flex direction adapts cleanly by viewport:
+ * - Desktop (Google Photos style): horizontal split with a collapsible right
+ *   info sidebar (open/closed state persisted in `localStorage`).
+ * - Mobile (Adobe Lightroom style): vertical scrollable layout with the photo
+ *   stage on top and the same info sidebar directly below at the bottom.
  */
 const PhotoViewer = ({
   photo,
@@ -42,8 +48,16 @@ const PhotoViewer = ({
   onNext,
   onClose,
 }: PhotoViewerProps) => {
-  const { isSlideShow, setIsSlideShow } = useAppContext();
-  const { editMode, face, setFace } = usePhotoInfo();
+  const { desktop, isSlideShow, setIsSlideShow } = useAppContext();
+  const { editMode, setEditMode } = usePhotoInfo();
+
+  const [desktopInfoOpen, setDesktopInfoOpen] = useLocalStorageBoolean(
+    DESKTOP_INFO_STORAGE_KEY,
+    false,
+  );
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   // Pause slideshow automatically if the user enters tag edit mode.
   useEffect(() => {
@@ -51,6 +65,14 @@ const PhotoViewer = ({
       setIsSlideShow(false);
     }
   }, [editMode, isSlideShow, setIsSlideShow]);
+
+  // On mobile, reset scroll position back to the photo when switching photos.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: photo.id intentionally triggers scroll reset on mobile navigation
+  useEffect(() => {
+    if (!desktop) {
+      scrollContainerRef.current?.scrollTo({ top: 0, behavior: "instant" });
+    }
+  }, [photo.id, desktop]);
 
   const handleSlideshowAdvance = useCallback(() => {
     onNext({ wrap: true });
@@ -65,51 +87,116 @@ const PhotoViewer = ({
     onAdvance: handleSlideshowAdvance,
   });
 
-  const handleBackdropClick = (e: MouseEvent<HTMLDivElement>) => {
-    if (
-      e.target instanceof HTMLElement &&
-      e.target.classList.contains("dismiss")
-    ) {
-      onClose();
-    }
-  };
+  const handleToggleSlideshow = useCallback(() => {
+    setIsSlideShow(!isSlideShow);
+  }, [isSlideShow, setIsSlideShow]);
 
-  const showChrome = !isSlideShow && !editMode;
+  const handleScrollToMobileInfo = useCallback(() => {
+    const container = scrollContainerRef.current;
+    const sidebar = sidebarRef.current;
+    if (!container || !sidebar) {
+      return;
+    }
+    if (container.scrollTop > 20) {
+      container.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
+      sidebar.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
+  const handleToggleInfo = useCallback(() => {
+    if (desktop) {
+      setDesktopInfoOpen((prev) => !prev);
+    } else {
+      handleScrollToMobileInfo();
+    }
+  }, [desktop, setDesktopInfoOpen, handleScrollToMobileInfo]);
+
+  const showSidebar = !isSlideShow && (!desktop || desktopInfoOpen || editMode);
+  const showNavArrows = !isSlideShow && !editMode;
 
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: Escape, Space, and Arrow keys are handled in useGalleryNavigation
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click dismisses fullscreen viewer
-    <div
-      className="overlay dismiss"
-      onClick={handleBackdropClick}
-      style={{ backgroundColor: isSlideShow ? "black" : undefined }}
+    <Dialog
+      open
+      fullScreen
+      onClose={(_event, reason) => {
+        if (reason !== "escapeKeyDown") {
+          onClose();
+        }
+      }}
+      slotProps={{
+        paper: {
+          sx: {
+            bgcolor: "#000",
+            borderRadius: 0,
+            overflow: "hidden",
+          },
+        },
+      }}
     >
-      <div className="wrapper">
-        <ImageWithFaceSelection
-          key={photo.id}
-          photo={photo}
-          alt={`Photo ${photo.id}`}
-          face={isSlideShow ? null : face}
-          setFace={setFace}
-        />
-        {!editMode && <ViewerControls />}
-        {!isSlideShow && <PhotoInfoPanel photo={photo} setFace={setFace} />}
-        {showChrome && hasPrev && (
-          <div className="overlay-arrows_left">
-            <IconButton onClick={onPrev} aria-label="Previous photo">
-              <ArrowForwardIosIcon style={{ transform: "scale(-1, 1)" }} />
-            </IconButton>
-          </div>
+      <Box
+        ref={scrollContainerRef}
+        sx={{
+          display: "flex",
+          flexDirection: desktop ? "row" : "column",
+          width: "100%",
+          height: "100%",
+          overflowX: "hidden",
+          overflowY: desktop || isSlideShow ? "hidden" : "auto",
+          bgcolor: "#000",
+        }}
+      >
+        <Box
+          sx={{
+            position: "relative",
+            flex: desktop ? "1 1 0%" : "0 0 auto",
+            minWidth: 0,
+            minHeight: 0,
+            width: desktop ? undefined : "100%",
+            height:
+              desktop || isSlideShow
+                ? "100%"
+                : `calc(100dvh - ${MOBILE_INFO_PEEK_HEIGHT}px)`,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <PhotoViewerToolbar
+            photo={photo}
+            activeIndex={activeIndex}
+            totalItems={totalItems}
+            hasMore={hasMore}
+            isSlideShow={isSlideShow}
+            editMode={editMode}
+            infoOpen={desktop ? desktopInfoOpen : false}
+            onClose={onClose}
+            onToggleSlideshow={handleToggleSlideshow}
+            onToggleInfo={handleToggleInfo}
+            onExitEdit={() => setEditMode(false)}
+          />
+
+          <PhotoStage
+            photo={photo}
+            showNavArrows={showNavArrows}
+            hasPrev={hasPrev}
+            hasNext={hasNext}
+            onPrev={onPrev}
+            onNext={() => onNext()}
+            hideFaces={isSlideShow}
+          />
+        </Box>
+
+        {showSidebar && (
+          <PhotoInfoSidebar
+            ref={sidebarRef}
+            photo={photo}
+            desktop={desktop}
+            onCloseSidebar={desktop ? handleToggleInfo : undefined}
+            onFocusSidebar={!desktop ? handleScrollToMobileInfo : undefined}
+          />
         )}
-        {showChrome && hasNext && (
-          <div className="overlay-arrows_right">
-            <IconButton onClick={() => onNext()} aria-label="Next photo">
-              <ArrowForwardIosIcon />
-            </IconButton>
-          </div>
-        )}
-      </div>
-    </div>
+      </Box>
+    </Dialog>
   );
 };
 
