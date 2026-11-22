@@ -1,7 +1,7 @@
 import { Box, Typography } from "@mui/material";
 import { useCallback, useRef } from "react";
 
-import PhotoModal from "@/components/viewer/PhotoModal";
+import PhotoViewer from "@/components/viewer/PhotoViewer";
 import { useAppContext } from "@/context/AppContext";
 import { usePhotoInfo } from "@/context/PhotoInfoContext";
 import { useGalleryNavigation } from "@/hooks/useGalleryNavigation";
@@ -13,7 +13,7 @@ import PhotoGrid from "./PhotoGrid";
 import "@/styles/Body.css";
 
 const GalleryBody = () => {
-  const { data, setFullscreenPhotoId, setIsSlideShow, desktop } =
+  const { data, setFullscreenPhotoId, isSlideShow, setIsSlideShow, desktop } =
     useAppContext();
   const { editMode } = usePhotoInfo();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -25,12 +25,17 @@ const GalleryBody = () => {
     setIsSlideShow(false);
   }, [setIsSlideShow]);
 
+  const handleToggleSlideshow = useCallback(() => {
+    setIsSlideShow(!isSlideShow);
+  }, [isSlideShow, setIsSlideShow]);
+
   const {
     activeIndex,
     activePhoto,
     hasPrev,
     hasNext,
     openAtIndex,
+    close,
     goNext,
     goPrev,
   } = useGalleryNavigation({
@@ -41,6 +46,7 @@ const GalleryBody = () => {
     urlPhotoId: data.fullscreenPhotoId,
     setUrlPhotoId: setFullscreenPhotoId,
     onClose: handleClose,
+    onToggleSlideshow: handleToggleSlideshow,
     isEditing: editMode,
   });
 
@@ -57,16 +63,14 @@ const GalleryBody = () => {
     onLoadMore: handleLoadMore,
   });
 
-  const handleNext = useCallback(() => {
-    goNext({ wrap: data.slideShow });
-  }, [goNext, data.slideShow]);
-
   return (
     <div className="body" ref={scrollRef}>
       {desktop && data.text && <h1 style={{ width: "100%" }}>{data.text}</h1>}
       {sections.map((section) => (
         <Box key={section.key}>
-          {section.title && <Typography variant="h1">{section.title}</Typography>}
+          {section.title && (
+            <Typography variant="h1">{section.title}</Typography>
+          )}
           <PhotoGrid items={section.items} onSelect={openAtIndex} />
         </Box>
       ))}
@@ -79,12 +83,17 @@ const GalleryBody = () => {
         <Typography variant="h1">No photo</Typography>
       )}
       {activePhoto !== null && (
-        <PhotoModal
+        <PhotoViewer
           photo={activePhoto}
-          handleRotationRight={handleNext}
-          handleRotationLeft={goPrev}
-          rightArrow={hasNext}
-          leftArrow={hasPrev}
+          activeIndex={activeIndex}
+          totalItems={items.length}
+          hasMore={hasMore}
+          isLoadingMore={isLoading}
+          hasPrev={hasPrev}
+          hasNext={hasNext}
+          onPrev={goPrev}
+          onNext={goNext}
+          onClose={close}
         />
       )}
     </div>
