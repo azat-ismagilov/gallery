@@ -1,177 +1,276 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { places, TAG_ALBUM } from "@/config/gallery";
 import { useAppContext } from "@/context/AppContext";
 import {
-  type ApiResponse,
   getAllWithEvent,
   getAllWithPerson,
   getAllWithTeam,
   getAllWithText,
 } from "@/services/flickrApi";
-import type { FlickrSearchResponse, Photo } from "@/types/gallery";
+import type {
+  FlickrSearchPhoto,
+  FlickrSearchResponse,
+  GalleryPhotoItem,
+  GallerySection,
+  Photo,
+} from "@/types/gallery";
+import {
+  buildGallerySections,
+  extractAlbumYearFromTags,
+  getNextEventName,
+  type RawPhotoGroup,
+} from "@/utils/gallerySections";
 import UniqueList from "@/utils/uniqueList";
 
-function albumFromTags(tags: string): string {
-  const albumTag = TAG_ALBUM.toLowerCase();
-  const tag = tags.split(" ").find((item) => item.startsWith(albumTag));
-  if (tag === undefined) {
-    return "Unknown";
-  }
-  const targetTag = tag.replaceAll(albumTag, "");
-  const foundTag = places
-    .map(({ year }) => year)
-    .find((year) => year.toLowerCase().replace(/[-_\s]/g, "") === targetTag);
-  return foundTag ?? "Unknown";
+interface LoaderCursor {
+  currentEvent: string | null;
+  nextPage: number;
+  totalPages: number;
+  exhausted: boolean;
 }
 
-function appendPhotos(
-  photosByEvent: Map<string | null, Photo[]>,
+export interface PhotoLoaderResult {
+  sections: GallerySection[];
+  items: GalleryPhotoItem[];
+  hasMore: boolean;
+  isLoading: boolean;
+  loadMore: () => Promise<void>;
+}
+
+function mapFlickrPhoto(raw: FlickrSearchPhoto): Photo {
+  return {
+    id: raw.id,
+    url_preview: raw.url_m ?? raw.url_o ?? "",
+    url: raw.url_l ?? raw.url_o ?? "",
+    origin: raw.url_o ?? raw.url_l ?? "",
+    width: Number(raw.width_l ?? raw.width_o ?? 0),
+    height: Number(raw.height_l ?? raw.height_o ?? 0),
+    year: extractAlbumYearFromTags(raw.tags, TAG_ALBUM, places),
+  };
+}
+
+function mergeGroupPhotos(
+  groups: RawPhotoGroup[],
   event: string | null,
-  photos: Photo[],
-): Map<string | null, Photo[]> {
-  const next = new Map(photosByEvent);
-  const appendedEventPhotos = [...(next.get(event) ?? []), ...photos];
-  next.set(
-    event,
-    UniqueList(appendedEventPhotos, (photo) => photo.id),
+  newPhotos: Photo[],
+): RawPhotoGroup[] {
+  if (newPhotos.length === 0) {
+    return groups;
+  }
+  const existingIndex = groups.findIndex((g) => g.event === event);
+  if (existingIndex === -1) {
+    return [
+      ...groups,
+      { event, photos: UniqueList(newPhotos, (photo) => photo.id) },
+    ];
+  }
+  return groups.map((group, idx) =>
+    idx === existingIndex
+      ? {
+          ...group,
+          photos: UniqueList(
+            [...group.photos, ...newPhotos],
+            (photo) => photo.id,
+          ),
+        }
+      : group,
   );
-  return next;
 }
 
-const usePhotoLoader = () => {
+const usePhotoLoader = (): PhotoLoaderResult => {
   const { data, events } = useAppContext();
 
-  const [photosByEvent, setPhotosByEvent] = useState<
-    Map<string | null, Photo[]>
-  >(() => new Map());
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [internalEvent, setInternalEvent] = useState<string | null>(data.event);
-  const [fetching, setFetching] = useState(false);
-  const [abortController, setAbortController] = useState(
-    () => new AbortController(),
-  );
+  const [groups, setGroups] = useState<RawPhotoGroup[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: abortController is reset inside this effect when filters change
-  useEffect(() => {
-    abortController.abort();
-    setPhotosByEvent(new Map());
-    setPage(1);
-    setInternalEvent(data.event);
-    setTotalPages(1);
-    setAbortController(new AbortController());
-  }, [data.year, data.event, data.text, data.team, data.person]);
+  const eventsRef = useRef<string[]>(events);
+  const filtersRef = useRef({
+    year: data.year,
+    event: data.event,
+    team: data.team,
+    person: data.person,
+    text: data.text,
+  });
 
-  const getNextEvent = useCallback(
-    (currentEvent: string | null): string | null => {
-      if (currentEvent === null) {
-        return null;
-      }
-      const index = events.indexOf(currentEvent);
-      if (index === -1 || index + 1 < events.length) {
-        return events[index + 1] ?? null;
-      }
-      return null;
-    },
-    [events],
-  );
+  const cursorRef = useRef<LoaderCursor>({
+    currentEvent: data.event,
+    nextPage: 1,
+    totalPages: 1,
+    exhausted: false,
+  });
+  const inFlightRef = useRef(false);
+  const sessionIdRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const photosList = useMemo<Photo[]>(
-    () => Array.from(photosByEvent.values()).flat(),
-    [photosByEvent],
-  );
-
-  const hasMorePhotos = useCallback((): boolean => {
-    return page <= totalPages || getNextEvent(internalEvent) !== null;
-  }, [page, totalPages, getNextEvent, internalEvent]);
-
-  const loadMorePhotos = useCallback(async () => {
-    if (fetching) {
+  const loadMore = useCallback(async () => {
+    if (inFlightRef.current || cursorRef.current.exhausted) {
       return;
     }
 
-    setFetching(true);
-
-    const nextEvent = getNextEvent(internalEvent);
-    if (page > totalPages && nextEvent !== null) {
-      setPage(1);
-      setTotalPages(1);
-      setInternalEvent(nextEvent);
-      setFetching(false);
-      return;
-    }
-
-    const config = {
-      signal: abortController.signal,
-    };
+    const sessionId = sessionIdRef.current;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    inFlightRef.current = true;
+    setIsLoading(true);
 
     try {
-      let response: ApiResponse<FlickrSearchResponse> | undefined;
-      if (internalEvent && data.year) {
-        response = await getAllWithEvent(
-          data.year,
-          internalEvent,
-          page,
-          config,
-        );
-      } else if (data.team && data.year) {
-        response = await getAllWithTeam(data.year, data.team, page, config);
-      } else if (data.person && data.year) {
-        response = await getAllWithPerson(data.year, data.person, page, config);
-      } else if (data.text) {
-        response = await getAllWithText(data.text, page, config);
-      }
+      const filters = filtersRef.current;
 
-      if (response) {
-        const mappedPhotos: Photo[] = response.data.photos.photo.map(
-          ({
-            url_m,
-            url_o,
-            url_l,
-            id,
-            width_o,
-            width_l,
-            height_o,
-            height_l,
-            tags,
-          }) => ({
-            url_preview: url_m ?? url_o ?? "",
-            url: url_l ?? url_o ?? "",
-            width: Number(width_l ?? width_o ?? 0),
-            height: Number(height_l ?? height_o ?? 0),
-            id,
-            origin: url_o ?? url_l ?? "",
-            year: albumFromTags(tags),
-          }),
-        );
-        const newPhotosByEvent = appendPhotos(
-          photosByEvent,
-          internalEvent,
-          mappedPhotos,
-        );
-        setTotalPages(response.data.photos.pages);
-        setPage(page + 1);
-        setPhotosByEvent(newPhotosByEvent);
+      // Loop allows seamlessly skipping past an empty event directly to the next event
+      // without forcing an extra scroll/effect tick.
+      while (sessionIdRef.current === sessionId) {
+        const cursor = cursorRef.current;
+        let targetEvent = cursor.currentEvent;
+        let targetPage = cursor.nextPage;
+
+        if (targetPage > cursor.totalPages) {
+          const nextEvent = getNextEventName(eventsRef.current, targetEvent);
+          if (nextEvent === null) {
+            cursorRef.current = { ...cursor, exhausted: true };
+            setHasMore(false);
+            return;
+          }
+          targetEvent = nextEvent;
+          targetPage = 1;
+          cursorRef.current = {
+            currentEvent: nextEvent,
+            nextPage: 1,
+            totalPages: 1,
+            exhausted: false,
+          };
+        }
+
+        let response: FlickrSearchResponse | null = null;
+        const config = { signal: controller.signal };
+
+        if (targetEvent && filters.year) {
+          response = await getAllWithEvent(
+            filters.year,
+            targetEvent,
+            targetPage,
+            config,
+          );
+        } else if (filters.team && filters.year) {
+          response = await getAllWithTeam(
+            filters.year,
+            filters.team,
+            targetPage,
+            config,
+          );
+        } else if (filters.person && filters.year) {
+          response = await getAllWithPerson(
+            filters.year,
+            filters.person,
+            targetPage,
+            config,
+          );
+        } else if (filters.text) {
+          response = await getAllWithText(filters.text, targetPage, config);
+        } else {
+          cursorRef.current = { ...cursorRef.current, exhausted: true };
+          setHasMore(false);
+          return;
+        }
+
+        if (sessionIdRef.current !== sessionId || controller.signal.aborted) {
+          return;
+        }
+
+        if (!response) {
+          // Network error: stop retrying automatically until next user scroll/action
+          return;
+        }
+
+        const totalPages = response.photos.pages;
+        const mappedPhotos = response.photos.photo.map(mapFlickrPhoto);
+        const nextPage = targetPage + 1;
+        const hasMoreInCurrent = nextPage <= totalPages;
+        const nextEventAvailable =
+          getNextEventName(eventsRef.current, targetEvent) !== null;
+
+        cursorRef.current = {
+          currentEvent: targetEvent,
+          nextPage,
+          totalPages,
+          exhausted: !hasMoreInCurrent && !nextEventAvailable,
+        };
+
+        setHasMore(!cursorRef.current.exhausted);
+
+        if (mappedPhotos.length > 0) {
+          setGroups((prev) =>
+            mergeGroupPhotos(prev, targetEvent, mappedPhotos),
+          );
+          return;
+        }
+
+        // Current page returned 0 photos; if another event exists, continue immediately
+        if (cursorRef.current.exhausted) {
+          return;
+        }
       }
     } finally {
-      setFetching(false);
+      if (sessionIdRef.current === sessionId) {
+        inFlightRef.current = false;
+        setIsLoading(false);
+      }
     }
-  }, [
-    fetching,
-    getNextEvent,
-    internalEvent,
-    page,
-    totalPages,
-    abortController.signal,
-    data.year,
-    data.team,
-    data.person,
-    data.text,
-    photosByEvent,
-  ]);
+  }, []);
 
-  return { hasMorePhotos, loadMorePhotos, photosByEvent, photosList };
+  // Reset pagination and immediately kick off the first page whenever filters change.
+  useEffect(() => {
+    abortControllerRef.current?.abort();
+    sessionIdRef.current += 1;
+    inFlightRef.current = false;
+
+    filtersRef.current = {
+      year: data.year,
+      event: data.event,
+      team: data.team,
+      person: data.person,
+      text: data.text,
+    };
+
+    cursorRef.current = {
+      currentEvent: data.event,
+      nextPage: 1,
+      totalPages: 1,
+      exhausted: false,
+    };
+
+    setGroups([]);
+    setHasMore(true);
+    setIsLoading(false);
+
+    void loadMore();
+
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, [data.year, data.event, data.team, data.person, data.text, loadMore]);
+
+  // Keep eventsRef up to date and re-evaluate exhaustion once events finish loading.
+  useEffect(() => {
+    eventsRef.current = events;
+    const cursor = cursorRef.current;
+    if (
+      cursor.exhausted &&
+      cursor.currentEvent !== null &&
+      getNextEventName(events, cursor.currentEvent) !== null
+    ) {
+      cursorRef.current = { ...cursor, exhausted: false };
+      setHasMore(true);
+    }
+  }, [events]);
+
+  const { sections, items } = useMemo(
+    () => buildGallerySections(groups, places),
+    [groups],
+  );
+
+  return { sections, items, hasMore, isLoading, loadMore };
 };
 
 export default usePhotoLoader;

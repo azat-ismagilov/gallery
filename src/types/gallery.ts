@@ -14,6 +14,21 @@ export interface Photo {
   year: string;
 }
 
+export interface GalleryPhotoItem {
+  /** Unique key per gallery position so identical photo IDs in different sections stay distinct. */
+  entryKey: string;
+  /** Zero-based position in the flattened visual order of the gallery. */
+  flatIndex: number;
+  sectionKey: string;
+  photo: Photo;
+}
+
+export interface GallerySection {
+  key: string;
+  title: string | null;
+  items: GalleryPhotoItem[];
+}
+
 export interface FacePosition {
   left: number;
   top: number;
@@ -79,6 +94,20 @@ export interface FlickrPhotoInfoResponse {
         raw: string;
       }>;
     };
+  };
+  stat: string;
+}
+
+export interface FlickrPhotoSize {
+  label: string;
+  width: number | string;
+  height: number | string;
+  source: string;
+}
+
+export interface FlickrPhotoSizesResponse {
+  sizes?: {
+    size?: FlickrPhotoSize[];
   };
   stat: string;
 }
