@@ -14,6 +14,7 @@ interface UseGalleryNavigationOptions {
   urlPhotoId: string | null;
   setUrlPhotoId: (id: string | null) => void;
   onClose?: () => void;
+  onToggleSlideshow?: () => void;
   /** Disable arrow/escape keyboard shortcuts while user is typing in form inputs. */
   isEditing?: boolean;
 }
@@ -58,6 +59,7 @@ export function useGalleryNavigation({
   urlPhotoId,
   setUrlPhotoId,
   onClose,
+  onToggleSlideshow,
   isEditing = false,
 }: UseGalleryNavigationOptions): GalleryNavigationResult {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -221,6 +223,9 @@ export function useGalleryNavigation({
       } else if (e.key === "ArrowRight" && hasNext) {
         e.preventDefault();
         goNext();
+      } else if (e.key === " " && onToggleSlideshow) {
+        e.preventDefault();
+        onToggleSlideshow();
       }
     };
 
@@ -228,7 +233,16 @@ export function useGalleryNavigation({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activePhoto, isEditing, hasPrev, hasNext, goPrev, goNext, close]);
+  }, [
+    activePhoto,
+    isEditing,
+    hasPrev,
+    hasNext,
+    goPrev,
+    goNext,
+    close,
+    onToggleSlideshow,
+  ]);
 
   return {
     activeIndex,
