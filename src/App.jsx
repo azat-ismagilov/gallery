@@ -1,5 +1,3 @@
-import { useEffect } from "react";
-
 import { Grid } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider } from "@mui/material/styles";
@@ -17,25 +15,15 @@ import "./styles/App.css";
 function App() {
   const { desktop } = useAppContext();
 
-  useEffect(() => {
-    document.title = title;
-    let meta = document.querySelector('meta[name="description"]');
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.setAttribute("name", "description");
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute("content", description);
-  }, []);
-
   return (
     <ThemeProvider theme={theme}>
+      <title>{title}</title>
+      <meta name="description" content={description} />
       <CssBaseline />
       <Grid container columns={10} height="100vh" p={2} pb={0} spacing={1}>
         {desktop && (
           <Grid
-            item
-            xs={2}
+            size={2}
             display="flex"
             flexDirection="column"
             justifyContent="space-between"
@@ -45,8 +33,7 @@ function App() {
           </Grid>
         )}
         <Grid
-          item
-          xs
+          size="grow"
           display="flex"
           flexDirection="column"
           justifyContent="space-between"
