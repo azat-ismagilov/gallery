@@ -34,6 +34,12 @@ export interface AppContextValue {
   setText: (newText: string) => void;
   setPerson: (newPerson: string) => void;
   setTeam: (newTeam: string) => void;
+  selectFilter: (filter: {
+    year?: string | null;
+    event?: string | null;
+    team?: string | null;
+    person?: string | null;
+  }) => void;
   setFullscreenPhotoId: (newFullscreenPhotoId: string | null) => void;
   isSlideShow: boolean;
   setIsSlideShow: (newIsSlideShow: boolean) => void;
@@ -133,6 +139,26 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
+  const selectFilter = (filter: {
+    year?: string | null;
+    event?: string | null;
+    team?: string | null;
+    person?: string | null;
+  }) => {
+    setData((prevState) => {
+      const targetYear = filter.year ?? prevState.year ?? LAST_YEAR;
+      const hasSpecific =
+        Boolean(filter.event) || Boolean(filter.team) || Boolean(filter.person);
+      return {
+        ...defaultContext,
+        year: targetYear,
+        event: filter.event ?? (hasSpecific ? null : DEFAULT_EVENT),
+        team: filter.team ?? null,
+        person: filter.person ?? null,
+      };
+    });
+  };
+
   const setFullscreenPhotoId = (newFullscreenPhotoId: string | null) => {
     setData((prevState) => ({
       ...prevState,
@@ -186,6 +212,7 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
         setText,
         setPerson,
         setTeam,
+        selectFilter,
         setFullscreenPhotoId,
         isSlideShow,
         setIsSlideShow,
