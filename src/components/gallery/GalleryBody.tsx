@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import { lazy, Suspense, useCallback, useRef } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef } from "react";
 
 import { useAppContext } from "@/context/AppContext";
 import { usePhotoInfo } from "@/context/PhotoInfoContext";
@@ -7,6 +7,7 @@ import { useGalleryNavigation } from "@/hooks/useGalleryNavigation";
 import { useImagePreload } from "@/hooks/useImagePreload";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import usePhotoLoader from "@/hooks/usePhotoLoader";
+import { getGalleryFilterKey } from "@/utils/galleryState";
 import PhotoGrid from "./PhotoGrid";
 
 import "@/styles/Body.css";
@@ -19,6 +20,13 @@ const GalleryBody = () => {
   const { editMode } = usePhotoInfo();
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const filterKey = getGalleryFilterKey(data);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: filterKey intentionally scrolls gallery back to top when filters change
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [filterKey]);
 
   const { sections, items, hasMore, isLoading, loadMore } = usePhotoLoader();
 

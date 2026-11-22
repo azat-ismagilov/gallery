@@ -3,19 +3,11 @@ import { useAppContext } from "@/context/AppContext";
 
 import "@/styles/TableOfContents.css";
 
-const TableOfContents = () => {
+const YearNav = () => {
   const { data, setYear } = useAppContext();
 
-  const handleClick = (selectedYear: string) => {
-    setYear(selectedYear);
-    document.querySelector(".body")?.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
-
   return (
-    <nav aria-label="Table of contents">
+    <nav aria-label="Years">
       {places.map(({ year, place, contestName }) => {
         const isSelected = year === data.year;
         return (
@@ -23,8 +15,9 @@ const TableOfContents = () => {
             type="button"
             className="year-wrapper"
             key={year}
-            title={isSelected ? "to top" : undefined}
-            onClick={() => handleClick(year)}
+            aria-current={isSelected ? "page" : undefined}
+            title={isSelected ? "Back to top" : undefined}
+            onClick={() => setYear(year)}
             style={{
               background: "none",
               border: "none",
@@ -46,4 +39,4 @@ const TableOfContents = () => {
   );
 };
 
-export default TableOfContents;
+export default YearNav;

@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router";
 
 import App from "@/App";
+import ErrorBoundary from "@/components/common/ErrorBoundary";
 import { AppContextProvider } from "@/context/AppContext";
 import { PhotoInfoProvider } from "@/context/PhotoInfoContext";
 
@@ -13,12 +14,14 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <AppContextProvider>
-        <PhotoInfoProvider>
-          <App />
-        </PhotoInfoProvider>
-      </AppContextProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AppContextProvider>
+          <PhotoInfoProvider>
+            <App />
+          </PhotoInfoProvider>
+        </AppContextProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

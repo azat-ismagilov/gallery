@@ -23,7 +23,7 @@ const TextFieldWithIcon = styled(TextField)(() => ({
 
 const filterOptions = createFilterOptions<SelectorOption>({ limit: 200 });
 
-interface SelectorProps {
+interface FilterSelectorProps {
   leftIcon: string;
   onChange: (value: SelectorOption | "clear" | null) => void;
   name: string;
@@ -32,14 +32,14 @@ interface SelectorProps {
   disableClearable?: boolean;
 }
 
-const Selector = ({
+const FilterSelector = ({
   leftIcon,
   onChange,
   name,
   value,
   options,
   disableClearable = false,
-}: SelectorProps) => {
+}: FilterSelectorProps) => {
   return (
     <Paper>
       <Autocomplete<SelectorOption, false, boolean, false>
@@ -76,4 +76,4 @@ const Selector = ({
   );
 };
 
-export default Selector;
+export default FilterSelector;
