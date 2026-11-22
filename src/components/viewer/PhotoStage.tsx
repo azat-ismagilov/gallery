@@ -14,6 +14,7 @@ import "react-image-crop/dist/ReactCrop.css";
 
 import { useAppContext } from "@/context/AppContext";
 import { usePhotoInfo } from "@/context/PhotoInfoContext";
+import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
 import type { PersonTag, Photo } from "@/types/gallery";
 import { type Dimensions, fitDimensions } from "@/utils/imageFit";
 import FaceBox from "./FaceBox";
@@ -121,9 +122,24 @@ const PhotoStage = ({
     setCrop(undefined);
   };
 
+  const swipeHandlers = useSwipeNavigation({
+    enabled: !editMode,
+    onNext: () => {
+      if (hasNext) {
+        onNext();
+      }
+    },
+    onPrev: () => {
+      if (hasPrev) {
+        onPrev();
+      }
+    },
+  });
+
   return (
     <Box
       ref={containerRef}
+      {...swipeHandlers}
       sx={{
         position: "relative",
         flex: "1 1 0%",
@@ -135,6 +151,7 @@ const PhotoStage = ({
         justifyContent: "center",
         overflow: "hidden",
         userSelect: "none",
+        touchAction: editMode ? "none" : "pan-y",
       }}
     >
       <Box
