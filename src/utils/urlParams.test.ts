@@ -38,6 +38,7 @@ describe("urlParams", () => {
       team: null,
       fullscreenPhotoId: "123456",
       slideShow: true,
+      suggestion: "WyJldmVudCRQaG90byBUb3VyIl0",
     };
     const serialized = serializeSearchParams(state);
     const reparsed = parseSearchParams(
@@ -49,6 +50,7 @@ describe("urlParams", () => {
       event: "Opening Ceremony",
       fullscreenPhotoId: "123456",
       slideShow: true,
+      suggestion: "WyJldmVudCRQaG90byBUb3VyIl0",
     });
   });
 });

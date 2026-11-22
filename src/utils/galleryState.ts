@@ -23,6 +23,7 @@ export function createDefaultGalleryState(
     team: null,
     fullscreenPhotoId: null,
     slideShow: false,
+    suggestion: null,
   };
 }
 

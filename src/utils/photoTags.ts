@@ -7,12 +7,14 @@ import {
 } from "@/config/gallery";
 import type { PhotoInfo } from "@/types/gallery";
 import {
+  buildFlickrSetTagsPayload,
+  extractPreservedTags,
   parsePhotoTags,
   serializePhotoTags,
   type TagPrefixes,
 } from "@/utils/photoTagParser";
 
-function getDefaultPrefixes(): TagPrefixes {
+export function getGalleryTagPrefixes(): TagPrefixes {
   return {
     event: TAG_EVENT,
     team: TAG_TEAM,
@@ -26,9 +28,26 @@ export function ParsePhotoInfo(
   tags: readonly (string | null)[] | null | undefined,
   description: string | undefined,
 ): PhotoInfo {
-  return parsePhotoTags(tags, description, getDefaultPrefixes());
+  return parsePhotoTags(tags, description, getGalleryTagPrefixes());
+}
+
+export function ExtractPreservedTags(
+  tags: readonly (string | null)[] | null | undefined,
+): string[] {
+  return extractPreservedTags(tags, getGalleryTagPrefixes());
 }
 
 export function SerializePhotoInfo(photoInfo: PhotoInfo | null): string[] {
-  return serializePhotoTags(photoInfo, getDefaultPrefixes());
+  return serializePhotoTags(photoInfo, getGalleryTagPrefixes());
+}
+
+export function BuildFlickrSetTagsPayload(
+  photoInfo: PhotoInfo,
+  preservedTags: readonly string[],
+): string {
+  return buildFlickrSetTagsPayload(
+    photoInfo,
+    preservedTags,
+    getGalleryTagPrefixes(),
+  );
 }

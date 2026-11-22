@@ -49,6 +49,8 @@ export interface PhotoInfo {
   photographer: string[];
 }
 
+export type FaceDiffStatus = "unchanged" | "added" | "removed";
+
 export interface AppQueryState {
   year: string | null;
   event: string | null;
@@ -57,6 +59,14 @@ export interface AppQueryState {
   team: string | null;
   fullscreenPhotoId: string | null;
   slideShow: boolean;
+  suggestion: string | null;
+}
+
+export interface FlickrAuthCredentials {
+  apiKey: string;
+  apiSecret: string;
+  oauthToken: string;
+  oauthTokenSecret: string;
 }
 
 export interface FlickrSearchPhoto {

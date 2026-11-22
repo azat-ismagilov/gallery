@@ -16,6 +16,11 @@ export function parseSearchParams(
     parsed.slideShow = slideshowParam === "true";
   }
 
+  const suggestParam = searchParams.get("suggest");
+  if (suggestParam !== null && suggestParam !== "") {
+    parsed.suggestion = suggestParam;
+  }
+
   const queryParam = searchParams.get("query");
   if (queryParam !== null) {
     parsed.text = decodeURIComponent(queryParam);
@@ -52,6 +57,7 @@ export function serializeSearchParams({
   team,
   fullscreenPhotoId,
   slideShow,
+  suggestion,
 }: AppQueryState): Record<string, string> {
   const params: Record<string, string> = {};
   if (year !== null) {
@@ -74,6 +80,9 @@ export function serializeSearchParams({
   }
   if (slideShow) {
     params.slideshow = "true";
+  }
+  if (suggestion !== null && fullscreenPhotoId !== null) {
+    params.suggest = suggestion;
   }
   return params;
 }
