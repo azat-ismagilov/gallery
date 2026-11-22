@@ -7,17 +7,21 @@ import {
   user_id,
 } from "@/config/gallery";
 import type {
+  FlickrAuthCredentials,
   FlickrPhotoInfoResponse,
   FlickrPhotoSizesResponse,
   FlickrSearchResponse,
   Photo,
 } from "@/types/gallery";
+import { signFlickrOAuthParams } from "@/utils/flickrOAuth";
 import {
   buildFlickrPhotoMethodUrl,
   buildFlickrSearchUrl,
   selectFlickrPhotoFromSizes,
 } from "@/utils/flickrUrl";
 import { LruCache } from "@/utils/lruCache";
+
+const FLICKR_REST_ENDPOINT = "https://api.flickr.com/services/rest";
 
 const credentials = {
   apiKey: api_key,
@@ -198,4 +202,112 @@ export async function getPhotoById(
     photoByIdCache.set(id, photo);
   }
   return photo;
+}
+
+export function invalidatePhotoInfoCache(id: string): void {
+  photoInfoCache.delete(id);
+}
+
+interface FlickrWriteBaseResponse {
+  stat: "ok" | "fail";
+  message?: string;
+  code?: number;
+  user?: {
+    id: string;
+    username?: {
+      _content?: string;
+    };
+  };
+}
+
+async function postSignedFlickrMethod(
+  method: string,
+  extraParams: Record<string, string>,
+  credentials: FlickrAuthCredentials,
+): Promise<FlickrWriteBaseResponse> {
+  const signedParams = await signFlickrOAuthParams(
+    "POST",
+    FLICKR_REST_ENDPOINT,
+    {
+      method,
+      format: "json",
+      nojsoncallback: "1",
+      ...extraParams,
+    },
+    credentials,
+  );
+
+  const body = new URLSearchParams(signedParams);
+  const response = await fetch(FLICKR_REST_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: body.toString(),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Flickr API returned HTTP ${response.status}`);
+  }
+
+  return (await response.json()) as FlickrWriteBaseResponse;
+}
+
+export async function testFlickrLogin(
+  credentials: FlickrAuthCredentials,
+): Promise<{ ok: true; username: string } | { ok: false; error: string }> {
+  try {
+    const result = await postSignedFlickrMethod(
+      "flickr.test.login",
+      {},
+      credentials,
+    );
+    if (result.stat === "ok") {
+      return {
+        ok: true,
+        username:
+          result.user?.username?._content ?? result.user?.id ?? "Flickr user",
+      };
+    }
+    return {
+      ok: false,
+      error: result.message ?? "Flickr rejected the provided credentials.",
+    };
+  } catch (e: unknown) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Failed to reach Flickr API.",
+    };
+  }
+}
+
+export async function updatePhotoTags(
+  photoId: string,
+  tagsPayload: string,
+  credentials: FlickrAuthCredentials,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const result = await postSignedFlickrMethod(
+      "flickr.photos.setTags",
+      {
+        photo_id: photoId,
+        tags: tagsPayload,
+      },
+      credentials,
+    );
+    if (result.stat === "ok") {
+      invalidatePhotoInfoCache(photoId);
+      return { ok: true };
+    }
+    return {
+      ok: false,
+      error: result.message ?? "Flickr rejected the tag update.",
+    };
+  } catch (e: unknown) {
+    return {
+      ok: false,
+      error:
+        e instanceof Error ? e.message : "Failed to update tags on Flickr.",
+    };
+  }
 }
