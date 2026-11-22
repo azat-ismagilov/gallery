@@ -5,6 +5,10 @@ import {
 } from "@/config/gallery";
 import UniqueList from "@/utils/uniqueList";
 
+const eventCache = new Map<string, Promise<string[]>>();
+const teamCache = new Map<string, Promise<string[]>>();
+const peopleCache = new Map<string, Promise<string[]>>();
+
 function parseLines(raw: string): string[] {
   return UniqueList(
     raw
@@ -14,25 +18,36 @@ function parseLines(raw: string): string[] {
   );
 }
 
-async function getEventData(year: string | null): Promise<string[]> {
+function loadCached(
+  cache: Map<string, Promise<string[]>>,
+  year: string | null,
+  loader: (y: string) => Promise<string>,
+): Promise<string[]> {
   if (!year) {
-    return [];
+    return Promise.resolve([]);
   }
-  return parseLines(await getRawEventData(year));
+  const existing = cache.get(year);
+  if (existing) {
+    return existing;
+  }
+  const promise = loader(year)
+    .then(parseLines)
+    .catch((err) => {
+      cache.delete(year);
+      throw err;
+    });
+  cache.set(year, promise);
+  return promise;
 }
 
-async function getTeamData(year: string | null): Promise<string[]> {
-  if (!year) {
-    return [];
-  }
-  return parseLines(await getRawTeamData(year));
+export function getEventData(year: string | null): Promise<string[]> {
+  return loadCached(eventCache, year, getRawEventData);
 }
 
-async function getPeopleData(year: string | null): Promise<string[]> {
-  if (!year) {
-    return [];
-  }
-  return parseLines(await getRawPeopleData(year));
+export function getTeamData(year: string | null): Promise<string[]> {
+  return loadCached(teamCache, year, getRawTeamData);
 }
 
-export { getEventData, getPeopleData, getTeamData };
+export function getPeopleData(year: string | null): Promise<string[]> {
+  return loadCached(peopleCache, year, getRawPeopleData);
+}

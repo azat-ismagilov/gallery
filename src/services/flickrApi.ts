@@ -12,9 +12,18 @@ import type {
   FlickrSearchResponse,
   Photo,
 } from "@/types/gallery";
+import { LruCache } from "@/utils/lruCache";
 
 const EXTRAS =
   "tags,machine_tags,url_m,url_c,url_l,url_o,description,date_upload,date_taken";
+
+const searchCache = new LruCache<string, FlickrSearchResponse>(100);
+const photoInfoCache = new LruCache<string, FlickrPhotoInfoResponse>(200);
+const photoByIdCache = new LruCache<string, Photo>(50);
+const inFlightPhotoInfo = new Map<
+  string,
+  Promise<FlickrPhotoInfoResponse | null>
+>();
 
 export interface FetchConfig {
   signal?: AbortSignal;
@@ -88,13 +97,28 @@ async function fetchJson<T>(
   }
 }
 
+async function fetchSearchCached(
+  url: string,
+  config: FetchConfig = {},
+): Promise<FlickrSearchResponse | null> {
+  const cached = searchCache.get(url);
+  if (cached) {
+    return cached;
+  }
+  const result = await fetchJson<FlickrSearchResponse>(url, config);
+  if (result && result.stat === "ok") {
+    searchCache.set(url, result);
+  }
+  return result;
+}
+
 export function getAllWithEvent(
   year: string,
   event = "Photo%20Tour",
   page = 1,
   config: FetchConfig = {},
 ): Promise<FlickrSearchResponse | null> {
-  return fetchJson<FlickrSearchResponse>(
+  return fetchSearchCached(
     buildSearchUrl(
       [
         [TAG_ALBUM, year],
@@ -112,7 +136,7 @@ export function getAllWithTeam(
   page = 1,
   config: FetchConfig = {},
 ): Promise<FlickrSearchResponse | null> {
-  return fetchJson<FlickrSearchResponse>(
+  return fetchSearchCached(
     buildSearchUrl(
       [
         [TAG_ALBUM, year],
@@ -130,7 +154,7 @@ export function getAllWithPerson(
   page = 1,
   config: FetchConfig = {},
 ): Promise<FlickrSearchResponse | null> {
-  return fetchJson<FlickrSearchResponse>(
+  return fetchSearchCached(
     buildSearchUrl([[TAG_ALBUM, year]], page, person),
     config,
   );
@@ -141,26 +165,65 @@ export function getAllWithText(
   page = 1,
   config: FetchConfig = {},
 ): Promise<FlickrSearchResponse | null> {
-  return fetchJson<FlickrSearchResponse>(
+  return fetchSearchCached(
     buildSearchUrl([], page, `${text}%20and%20${TAG_ALBUM}$`),
     config,
   );
 }
 
-export function getPhotoInfo(
+export function getCachedPhotoInfo(id: string): FlickrPhotoInfoResponse | null {
+  return photoInfoCache.get(id) ?? null;
+}
+
+export async function getPhotoInfo(
   id: string,
   config: FetchConfig = {},
 ): Promise<FlickrPhotoInfoResponse | null> {
-  return fetchJson<FlickrPhotoInfoResponse>(
+  const cached = photoInfoCache.get(id);
+  if (cached) {
+    return cached;
+  }
+
+  // Deduplicate concurrent requests (e.g. prefetch + active view) for the same photo ID.
+  const existing = inFlightPhotoInfo.get(id);
+  if (existing) {
+    return existing;
+  }
+
+  const request = fetchJson<FlickrPhotoInfoResponse>(
     buildPhotoMethodUrl("flickr.photos.getInfo", id),
     config,
-  );
+  )
+    .then((result) => {
+      if (result && result.stat === "ok") {
+        photoInfoCache.set(id, result);
+      }
+      return result;
+    })
+    .finally(() => {
+      inFlightPhotoInfo.delete(id);
+    });
+
+  inFlightPhotoInfo.set(id, request);
+  return request;
+}
+
+export function prefetchPhotoInfo(id: string): void {
+  if (photoInfoCache.has(id) || inFlightPhotoInfo.has(id)) {
+    return;
+  }
+  void getPhotoInfo(id);
 }
 
 export async function getPhotoById(
   id: string,
   config: FetchConfig = {},
 ): Promise<Photo | null> {
+  const cached = photoByIdCache.get(id);
+  if (cached) {
+    return cached;
+  }
+
   const response = await fetchJson<FlickrPhotoSizesResponse>(
     buildPhotoMethodUrl("flickr.photos.getSizes", id),
     config,
@@ -185,7 +248,7 @@ export async function getPhotoById(
     return null;
   }
 
-  return {
+  const photo: Photo = {
     id,
     url_preview: medium.source,
     url: large.source,
@@ -194,4 +257,6 @@ export async function getPhotoById(
     height: Number(large.height) || Number(original.height) || 0,
     year: "Unknown",
   };
+  photoByIdCache.set(id, photo);
+  return photo;
 }
