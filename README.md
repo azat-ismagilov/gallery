@@ -85,7 +85,7 @@ Each year is represented by three files in this folder: `.event`, `.people` and 
 
 ## Development Deployment Guide
 
-Requires: Node 18+
+Requires: [Bun](https://bun.sh) 1.2+
 
 Select gallery instance and build
 
@@ -98,7 +98,7 @@ set VITE_DATA_FOLDER=data%version%
 
 echo "Making bundle with public_url=%PUBLIC_URL% and data=%VITE_DATA_FOLDER%"
 
-npm run build -- --base=/%PUBLIC_URL%
+bun run build -- --base=/%PUBLIC_URL%
 ```
 
 3. this will produce a folder named %PUBLIC_URL%
