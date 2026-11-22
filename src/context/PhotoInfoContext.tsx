@@ -13,6 +13,7 @@ import { ParsePhotoInfo } from "@/utils/photoTags";
 
 export interface PhotoInfoContextValue {
   photoInfo: PhotoInfo | null;
+  isLoading: boolean;
   setPhotoInfo: (info: PhotoInfo | null) => void;
   editMode: boolean;
   setEditMode: (editing: boolean) => void;
@@ -32,26 +33,39 @@ const PhotoInfoProvider = ({ children }: { children: ReactNode }) => {
   const { data } = useAppContext();
 
   const [photoInfo, setPhotoInfo] = useState<PhotoInfo | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [face, setFace] = useState<PersonTag | null>(null);
 
   useEffect(() => {
     const fullscreenPhotoId = data.fullscreenPhotoId;
+    setPhotoInfo(null);
+    setFace(null);
+    setEditMode(false);
+
     if (fullscreenPhotoId === null) {
+      setIsLoading(false);
       return;
     }
+
     const controller = new AbortController();
+    setIsLoading(true);
+
     void getPhotoInfo(fullscreenPhotoId, { signal: controller.signal }).then(
       (response) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        setIsLoading(false);
         if (!response) {
           return;
         }
-        const tags = response.data.photo?.tags?.tag?.map((tag) => tag.raw);
-        const description = response.data.photo?.description?._content;
-        const newPhotoInfo = ParsePhotoInfo(tags, description);
-        setPhotoInfo(newPhotoInfo);
+        const tags = response.photo?.tags?.tag?.map((tag) => tag.raw);
+        const description = response.photo?.description?._content;
+        setPhotoInfo(ParsePhotoInfo(tags, description));
       },
     );
+
     return () => {
       controller.abort();
     };
@@ -89,6 +103,7 @@ const PhotoInfoProvider = ({ children }: { children: ReactNode }) => {
     <PhotoInfoContext.Provider
       value={{
         photoInfo,
+        isLoading,
         setPhotoInfo,
         editMode,
         setEditMode,
