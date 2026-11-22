@@ -3,11 +3,11 @@ import { IconButton } from "@mui/material";
 
 import { usePhotoInfo } from "@/context/PhotoInfoContext";
 import type { Photo } from "@/types/gallery";
-import Control from "./Control";
 import ImageWithFaceSelection from "./ImageWithFaceSelection";
-import PhotoInfoPanel from "./PhotoInfo/PhotoInfoPanel";
+import PhotoInfoPanel from "./PhotoInfoPanel";
+import ViewerControls from "./ViewerControls";
 
-import "../../styles/Body.css";
+import "@/styles/Body.css";
 
 interface LightboxProps {
   photo: Photo;
@@ -35,7 +35,7 @@ const Lightbox = ({
         face={face}
         setFace={setFace}
       />
-      {!editMode && <Control />}
+      {!editMode && <ViewerControls />}
       <PhotoInfoPanel photo={photo} setFace={setFace} />
       {leftArrow && !editMode && (
         <div className="overlay-arrows_left">

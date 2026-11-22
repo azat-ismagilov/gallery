@@ -13,9 +13,9 @@ import { useAppContext } from "@/context/AppContext";
 import { usePhotoInfo } from "@/context/PhotoInfoContext";
 import { getPeopleData } from "@/services/dataLoader";
 import type { PersonTag, Photo } from "@/types/gallery";
-import FaceDiv from "./FaceDiv";
+import FaceBox from "./FaceBox";
 
-import "../../styles/Body.css";
+import "@/styles/Body.css";
 
 const filterOptions = createFilterOptions<string>({ limit: 200 });
 
@@ -89,7 +89,7 @@ const ImageWithFaceSelection = ({
       <ReactCrop crop={crop} onChange={(c) => setCrop(c)} disabled={!editMode}>
         <img width={width} height={height} src={photo.url} alt={alt} />
         {photoInfo?.person.map((person) => (
-          <FaceDiv
+          <FaceBox
             person={person}
             setFace={setFace}
             hidden={!editMode && face?.name !== person.name}

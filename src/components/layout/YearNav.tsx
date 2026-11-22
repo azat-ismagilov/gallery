@@ -1,7 +1,7 @@
 import { places } from "@/config/gallery";
 import { useAppContext } from "@/context/AppContext";
 
-import "../styles/TableOfContents.css";
+import "@/styles/TableOfContents.css";
 
 const TableOfContents = () => {
   const { data, setYear } = useAppContext();

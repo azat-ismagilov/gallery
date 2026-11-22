@@ -2,8 +2,8 @@ import { styled } from "@mui/material/styles";
 
 import type { PersonTag } from "@/types/gallery";
 
-import "../../styles/FaceDiv.css";
-import "../../styles/theme-variables.css";
+import "@/styles/FaceDiv.css";
+import "@/styles/theme-variables.css";
 
 interface RectangleProps {
   top: number;

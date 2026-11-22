@@ -7,8 +7,8 @@ import teamIcon from "@/assets/icons/team.svg";
 import { places } from "@/config/gallery";
 import { useAppContext } from "@/context/AppContext";
 import type { Place } from "@/types/gallery";
-import Search from "./Search";
-import Selector, { type SelectorOption } from "./Selector";
+import FilterSelector, { type SelectorOption } from "./FilterSelector";
+import SearchBar from "./SearchBar";
 
 function formatOptions(items: readonly string[]): SelectorOption[] {
   return items.map((item) => ({ data: item, label: item }));
@@ -55,7 +55,7 @@ const Filters = () => {
   return (
     <Stack direction={desktop ? "row" : "column"} spacing={desktop ? 1 : 0.5}>
       {!desktop && (
-        <Selector
+        <FilterSelector
           options={yearOptions}
           leftIcon={calendarIcon}
           name="Select year"
@@ -68,7 +68,7 @@ const Filters = () => {
           disableClearable
         />
       )}
-      <Selector
+      <FilterSelector
         options={eventOptions}
         name="Select event"
         leftIcon={eventIcon}
@@ -77,7 +77,7 @@ const Filters = () => {
         }}
         value={eventOptions.find((o) => o.data === data.event) ?? null}
       />
-      <Selector
+      <FilterSelector
         options={teamOptions}
         name="Select team"
         leftIcon={teamIcon}
@@ -86,7 +86,7 @@ const Filters = () => {
         }}
         value={teamOptions.find((o) => o.data === data.team) ?? null}
       />
-      <Selector
+      <FilterSelector
         options={personOptions}
         name="Select person"
         leftIcon={personIcon}
@@ -95,7 +95,7 @@ const Filters = () => {
         }}
         value={personOptions.find((o) => o.data === data.person) ?? null}
       />
-      <Search />
+      <SearchBar />
     </Stack>
   );
 };

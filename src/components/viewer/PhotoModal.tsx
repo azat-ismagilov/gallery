@@ -5,7 +5,7 @@ import type { Photo } from "@/types/gallery";
 import Lightbox from "./Lightbox";
 import Slideshow from "./Slideshow";
 
-import "../../styles/Body.css";
+import "@/styles/Body.css";
 
 interface MyModalProps {
   photo: Photo;

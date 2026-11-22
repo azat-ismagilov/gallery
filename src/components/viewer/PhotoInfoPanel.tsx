@@ -35,7 +35,7 @@ import {
   TeamInfo,
 } from "./PhotoInfoDetails";
 
-import "../../../styles/PhotoInfo.css";
+import "@/styles/PhotoInfo.css";
 
 interface PhotoInfoPanelProps {
   setFace: (person: PersonTag | null) => void;

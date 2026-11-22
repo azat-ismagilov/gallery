@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 
 import type { Photo } from "@/types/gallery";
-import Control from "./Control";
+import ViewerControls from "./ViewerControls";
 
-import "../../styles/Body.css";
+import "@/styles/Body.css";
 
 interface SlideshowProps {
   photo: Photo;
@@ -24,7 +24,7 @@ const Slideshow = ({ photo, handleRotationRight }: SlideshowProps) => {
   return (
     <div className="dismiss">
       <div className="wrapper">
-        <Control />
+        <ViewerControls />
         <div className="img-container">
           <img className="full" src={photo.url} alt="fullsize" />
         </div>

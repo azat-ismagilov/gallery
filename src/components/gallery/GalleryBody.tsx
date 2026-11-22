@@ -1,14 +1,14 @@
 import { Box, Typography } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import PhotoModal from "@/components/viewer/PhotoModal";
 import { useAppContext } from "@/context/AppContext";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import usePhotoLoader from "@/hooks/usePhotoLoader";
 import type { Photo } from "@/types/gallery";
-import MyModal from "./MyModal";
 import PhotoGridByYear from "./PhotoGridByYear";
 
-import "../../styles/Body.css";
+import "@/styles/Body.css";
 
 const Body = () => {
   const { data, setFullscreenPhotoId, setIsSlideShow, desktop } =
@@ -153,7 +153,7 @@ const Body = () => {
         <Typography variant="h1">No photo</Typography>
       )}
       {fullscreenPhoto !== null && (
-        <MyModal
+        <PhotoModal
           photo={fullscreenPhoto}
           handleRotationRight={handleRotationRight}
           handleRotationLeft={handleRotationLeft}

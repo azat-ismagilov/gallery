@@ -3,9 +3,9 @@ import MenuIcon from "@mui/icons-material/Menu";
 import { Collapse, IconButton, Stack } from "@mui/material";
 
 import { useAppContext } from "@/context/AppContext";
-import { MobileLogo } from "../Logo";
 import Filters from "./Filters";
-import MobileYearWrapper from "./MobileYearWrapper";
+import { MobileLogo } from "./Logo";
+import MobileYearHeader from "./MobileYearHeader";
 
 const Header = () => {
   const { isOpenMenu, setIsOpenMenu, mobile } = useAppContext();
@@ -34,7 +34,7 @@ const Header = () => {
       <Collapse in={isOpenMenu} sx={{ width: 1 }}>
         <Filters />
       </Collapse>
-      {mobile && <MobileYearWrapper />}
+      {mobile && <MobileYearHeader />}
     </Stack>
   );
 };

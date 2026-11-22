@@ -1,9 +1,9 @@
-import TableOfContents from "./TableOfContents";
+import YearNav from "./YearNav";
 
 const Sidebar = () => {
   return (
     <div>
-      <TableOfContents />
+      <YearNav />
     </div>
   );
 };
