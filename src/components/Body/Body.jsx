@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import InfiniteScroll from "react-infinite-scroller";
 
 import { Box, Typography } from "@mui/material";
 
@@ -16,6 +15,7 @@ const Body = () => {
   const { data, setFullscreenPhotoId, setIsSlideShow, desktop } =
     useAppContext();
   const scrollRef = useRef(null);
+  const sentinelRef = useRef(null);
 
   const { hasMorePhotos, loadMorePhotos, photosByEvent, photosList } =
     usePhotoLoader();
@@ -28,6 +28,26 @@ const Body = () => {
   const handleClick = (id) => {
     setFullscreenPhotoId(id);
   };
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    const root = scrollRef.current;
+    if (!sentinel || !hasMorePhotos()) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadMorePhotos();
+        }
+      },
+      { root, rootMargin: "300px" },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMorePhotos, loadMorePhotos]);
 
   useEffect(() => {
     const id = data.fullscreenPhotoId;
@@ -107,25 +127,17 @@ const Body = () => {
   return (
     <div className="body" ref={scrollRef}>
       {desktop && data.text && <h1 style={{ width: "100%" }}>{data.text}</h1>}
-      <InfiniteScroll
-        loadMore={loadMorePhotos}
-        hasMore={hasMorePhotos()}
-        initialLoad={true}
-        loader={
-          <Typography variant="h1" key={0}>
-            Loading ...
-          </Typography>
-        }
-        useWindow={false}
-        getScrollParent={() => scrollRef.current}
-      >
-        {Array.from(photosByEvent).map(([event, photos]) => (
-          <Box key={event}>
-            {event && <Typography variant="h1">{event}</Typography>}
-            <PhotoGridByYear photos={photos} handleClick={handleClick} />
-          </Box>
-        ))}
-      </InfiniteScroll>
+      {Array.from(photosByEvent).map(([event, photos]) => (
+        <Box key={event}>
+          {event && <Typography variant="h1">{event}</Typography>}
+          <PhotoGridByYear photos={photos} handleClick={handleClick} />
+        </Box>
+      ))}
+      {hasMorePhotos() && (
+        <Box ref={sentinelRef}>
+          <Typography variant="h1">Loading ...</Typography>
+        </Box>
+      )}
       {!hasMorePhotos() && photosList.length === 0 && (
         <Typography variant="h1">No photo</Typography>
       )}

@@ -1,5 +1,3 @@
-import axios from "axios";
-
 import {
   PER_PAGE,
   TAG_ALBUM,
@@ -30,7 +28,7 @@ function buildSearchUrl(tags = [], page = 1, text = "") {
     per_page: PER_PAGE,
     extras,
     format: "json",
-    nojsoncallback: "?",
+    nojsoncallback: "1",
   };
   if (tags.length) {
     params.tags = tags
@@ -52,7 +50,7 @@ function buildPhotoInfoUrl(id) {
     api_key,
     user_id,
     format: "json",
-    nojsoncallback: "?",
+    nojsoncallback: "1",
     photo_id: id,
   };
   return buildQuery(params);
@@ -60,9 +58,16 @@ function buildPhotoInfoUrl(id) {
 
 async function fetchData(url, config = {}) {
   try {
-    return await axios.get(url, config);
+    const response = await fetch(url, { signal: config.signal });
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    const data = await response.json();
+    return { data };
   } catch (e) {
-    console.log(e);
+    if (e?.name !== "AbortError") {
+      console.error(e);
+    }
   }
 }
 

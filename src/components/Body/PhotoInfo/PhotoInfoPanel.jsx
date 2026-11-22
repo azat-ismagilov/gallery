@@ -8,8 +8,15 @@ import EmailIcon from "@mui/icons-material/Email";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import { Box, Grid, IconButton, Stack, Tooltip } from "@mui/material";
-import { enqueueSnackbar } from "notistack";
+import {
+  Alert,
+  Box,
+  Grid,
+  IconButton,
+  Snackbar,
+  Stack,
+  Tooltip,
+} from "@mui/material";
 
 import { SerializePhotoInfo } from "../../../Util/PhotoInfoHelper";
 import { FLICKR_IMAGE_PREFIX, SUGGESTIONS_EMAIL } from "../../../consts";
@@ -36,6 +43,7 @@ const PhotoInfoPanel = ({ setFace, photo }) => {
   const { editMode, setEditMode, photoInfo } = usePhotoInfo();
 
   const [hidden, setHidden] = useState(false);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
 
   const toolTipsHidden = editMode;
   const changesPane = editMode && desktop;
@@ -46,10 +54,7 @@ const PhotoInfoPanel = ({ setFace, photo }) => {
   function copyToClipboard() {
     setEditMode(false);
     navigator.clipboard.writeText(tags);
-    enqueueSnackbar("New tags copied to clipboard", {
-      variant: "success",
-      autoHideDuration: 2000,
-    });
+    setSnackbarOpen(true);
   }
 
   const emailBody = `Photo link: ${photoLink}\n\nGallery link: ${window.location.href}\n\nTags: ${tags}`;
@@ -173,6 +178,19 @@ const PhotoInfoPanel = ({ setFace, photo }) => {
           </Tooltip>
         )}
       </div>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={2000}
+        onClose={() => setSnackbarOpen(false)}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity="success"
+          variant="filled"
+        >
+          New tags copied to clipboard
+        </Alert>
+      </Snackbar>
     </div>
   );
 };

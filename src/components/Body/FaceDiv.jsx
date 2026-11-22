@@ -1,19 +1,22 @@
-import styled from "styled-components";
+import { styled } from "@mui/material/styles";
 
 import "../../styles/FaceDiv.css";
 import "../../styles/theme-variables.css";
 
-const Rectangle = styled.fieldset`
-  top: ${(props) => props.top * 100 + "%"};
-  bottom: ${(props) => 100 - props.bottom * 100 - 3 + "%"};
-  left: ${(props) => props.left * 100 + "%"};
-  right: ${(props) => 100 - props.right * 100 + "%"};
-  position: absolute;
-  color: var(--colorRectangle);
-  padding: 3px 6px;
-  border: var(--borderRectangle) solid 3px;
-  transform: rotatex(180deg);
-`;
+const Rectangle = styled("fieldset", {
+  shouldForwardProp: (prop) =>
+    !["top", "bottom", "left", "right"].includes(prop),
+})(({ top, bottom, left, right }) => ({
+  top: `${top * 100}%`,
+  bottom: `${100 - bottom * 100 - 3}%`,
+  left: `${left * 100}%`,
+  right: `${100 - right * 100}%`,
+  position: "absolute",
+  color: "var(--colorRectangle)",
+  padding: "3px 6px",
+  border: "var(--borderRectangle) solid 3px",
+  transform: "rotatex(180deg)",
+}));
 
 const FaceDiv = ({ person, hidden, setFace }) => {
   return (

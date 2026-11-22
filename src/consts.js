@@ -1,25 +1,36 @@
-const dataFolder = import.meta.env.VITE_DATA_FOLDER;
-console.log(import.meta.env);
+import * as consts from "@data/consts.js";
 
-const consts = await import(`../${dataFolder}/consts.js`);
-export const getRawEventData = async (year) => {
-  return (await import(`../${dataFolder}/${year}.event`)).default;
-};
+const eventFiles = import.meta.glob("@data/*.event", {
+  query: "?raw",
+  import: "default",
+});
+const teamFiles = import.meta.glob("@data/*.team", {
+  query: "?raw",
+  import: "default",
+});
+const peopleFiles = import.meta.glob("@data/*.people", {
+  query: "?raw",
+  import: "default",
+});
 
-export const getRawTeamData = async (year) => {
-  return (await import(`../${dataFolder}/${year}.team`)).default;
-};
+async function loadRawData(files, year, extension) {
+  const suffix = `/${year}.${extension}`;
+  const entry = Object.entries(files).find(([key]) => key.endsWith(suffix));
+  if (!entry) {
+    return "";
+  }
+  return await entry[1]();
+}
 
-export const getRawPeopleData = async (year) => {
-  return (await import(`../${dataFolder}/${year}.people`)).default;
-};
+export const getRawEventData = (year) => loadRawData(eventFiles, year, "event");
+export const getRawTeamData = (year) => loadRawData(teamFiles, year, "team");
+export const getRawPeopleData = (year) =>
+  loadRawData(peopleFiles, year, "people");
 
-console.log(`Using ${dataFolder} folder for consts.js`);
-console.log(`Loaded \n${JSON.stringify(consts, undefined, 4)}`);
 export const places = consts.places.map(([year, place, contestName]) => ({
-  year: year,
-  place: place,
-  contestName: contestName,
+  year,
+  place,
+  contestName,
 }));
 export const api_key = consts.api_key;
 export const user_id = consts.user_id;
@@ -37,5 +48,4 @@ export const LAST_YEAR = consts.LAST_YEAR;
 export const DEFAULT_EVENT = consts.DEFAULT_EVENT;
 export const FLICKR_IMAGE_PREFIX = consts.FLICKR_IMAGE_PREFIX;
 export const SUGGESTIONS_EMAIL = consts.SUGGESTIONS_EMAIL;
-// todo: somehow replace this without redeclaration
-export const DEBUG = import.meta.env.mode === "development";
+export const DEBUG = import.meta.env.DEV;
