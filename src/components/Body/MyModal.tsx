@@ -1,7 +1,7 @@
 import type { MouseEvent } from "react";
 
-import type { Photo } from "../../types";
-import { useAppContext } from "../AppContext";
+import { useAppContext } from "@/context/AppContext";
+import type { Photo } from "@/types/gallery";
 import Lightbox from "./Lightbox";
 import Slideshow from "./Slideshow";
 

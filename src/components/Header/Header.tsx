@@ -2,7 +2,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import MenuIcon from "@mui/icons-material/Menu";
 import { Collapse, IconButton, Stack } from "@mui/material";
 
-import { useAppContext } from "../AppContext";
+import { useAppContext } from "@/context/AppContext";
 import { MobileLogo } from "../Logo";
 import Filters from "./Filters";
 import MobileYearWrapper from "./MobileYearWrapper";

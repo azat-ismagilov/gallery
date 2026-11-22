@@ -1,4 +1,4 @@
-import type { Photo } from "../../types";
+import type { Photo } from "@/types/gallery";
 
 interface PhotoGridProps {
   photos: readonly Photo[];

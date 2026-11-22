@@ -4,9 +4,9 @@ import {
   TAG_PERSON,
   TAG_PHOTOGRAPHER,
   TAG_TEAM,
-} from "../consts";
-import type { FacePosition, PersonTag, PhotoInfo } from "../types";
-import UniqueList from "./UniqueList";
+} from "@/config/gallery";
+import type { FacePosition, PersonTag, PhotoInfo } from "@/types/gallery";
+import UniqueList from "@/utils/uniqueList";
 
 const MAX_INT = 65535;
 

@@ -10,6 +10,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      "@": path.resolve(rootDir, "src"),
       "@data": path.resolve(rootDir, dataFolder),
     },
   },

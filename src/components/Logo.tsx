@@ -1,7 +1,7 @@
 import { Box, Link } from "@mui/material";
 
-import { LAST_YEAR } from "../consts";
-import logo from "../images/white.svg";
+import logo from "@/assets/icons/white.svg";
+import { LAST_YEAR } from "@/config/gallery";
 
 const MobileLogo = () => {
   return (

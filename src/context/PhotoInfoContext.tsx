@@ -6,10 +6,10 @@ import {
   useState,
 } from "react";
 
-import type { PersonTag, PhotoInfo } from "../../../types";
-import { ParsePhotoInfo } from "../../../Util/PhotoInfoHelper";
-import { getPhotoInfo } from "../../../Util/PhotoService";
-import { useAppContext } from "../../AppContext";
+import { useAppContext } from "@/context/AppContext";
+import { getPhotoInfo } from "@/services/flickrApi";
+import type { PersonTag, PhotoInfo } from "@/types/gallery";
+import { ParsePhotoInfo } from "@/utils/photoTags";
 
 export interface PhotoInfoContextValue {
   photoInfo: PhotoInfo | null;

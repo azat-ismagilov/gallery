@@ -1,7 +1,7 @@
 import { Box, Typography } from "@mui/material";
 
-import { places } from "../../consts";
-import { useAppContext } from "../AppContext";
+import { places } from "@/config/gallery";
+import { useAppContext } from "@/context/AppContext";
 
 const MobileYearWrapper = () => {
   const { data, setIsOpenMenu } = useAppContext();

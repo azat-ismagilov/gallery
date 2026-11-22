@@ -5,8 +5,11 @@ import {
   TAG_EVENT,
   TAG_TEAM,
   user_id,
-} from "../consts";
-import type { FlickrPhotoInfoResponse, FlickrSearchResponse } from "../types";
+} from "@/config/gallery";
+import type {
+  FlickrPhotoInfoResponse,
+  FlickrSearchResponse,
+} from "@/types/gallery";
 
 const extras =
   "tags,machine_tags,url_m,url_c,url_l,url_o,description,date_upload,date_taken";

@@ -17,11 +17,11 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 
-import { FLICKR_IMAGE_PREFIX, SUGGESTIONS_EMAIL } from "../../../consts";
-import type { PersonTag, Photo } from "../../../types";
-import { SerializePhotoInfo } from "../../../Util/PhotoInfoHelper";
-import { useAppContext } from "../../AppContext";
-import { usePhotoInfo } from "./PhotoInfoContext";
+import { FLICKR_IMAGE_PREFIX, SUGGESTIONS_EMAIL } from "@/config/gallery";
+import { useAppContext } from "@/context/AppContext";
+import { usePhotoInfo } from "@/context/PhotoInfoContext";
+import type { PersonTag, Photo } from "@/types/gallery";
+import { SerializePhotoInfo } from "@/utils/photoTags";
 import {
   AlbumEdit,
   AlbumInfo,

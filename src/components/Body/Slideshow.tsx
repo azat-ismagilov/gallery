@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import type { Photo } from "../../types";
+import type { Photo } from "@/types/gallery";
 import Control from "./Control";
 
 import "../../styles/Body.css";

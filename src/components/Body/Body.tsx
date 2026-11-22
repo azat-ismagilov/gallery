@@ -1,9 +1,10 @@
 import { Box, Typography } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { Photo } from "../../types";
-import usePhotoLoader from "../../Util/PhotoLoader";
-import { useAppContext } from "../AppContext";
+import { useAppContext } from "@/context/AppContext";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import usePhotoLoader from "@/hooks/usePhotoLoader";
+import type { Photo } from "@/types/gallery";
 import MyModal from "./MyModal";
 import PhotoGridByYear from "./PhotoGridByYear";
 
@@ -30,25 +31,14 @@ const Body = () => {
     [setFullscreenPhotoId],
   );
 
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    const root = scrollRef.current;
-    if (!sentinel || !hasMorePhotos()) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          void loadMorePhotos();
-        }
-      },
-      { root, rootMargin: "300px" },
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasMorePhotos, loadMorePhotos]);
+  useInfiniteScroll({
+    rootRef: scrollRef,
+    sentinelRef,
+    enabled: hasMorePhotos(),
+    onLoadMore: () => {
+      void loadMorePhotos();
+    },
+  });
 
   useEffect(() => {
     const id = data.fullscreenPhotoId;

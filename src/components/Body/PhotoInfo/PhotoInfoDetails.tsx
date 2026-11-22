@@ -1,10 +1,10 @@
 import { Autocomplete, TextField } from "@mui/material";
 import { Fragment, type ReactNode } from "react";
 
-import { places } from "../../../consts";
-import type { PersonTag } from "../../../types";
-import { useAppContext } from "../../AppContext";
-import { usePhotoInfo } from "./PhotoInfoContext";
+import { places } from "@/config/gallery";
+import { useAppContext } from "@/context/AppContext";
+import { usePhotoInfo } from "@/context/PhotoInfoContext";
+import type { PersonTag } from "@/types/gallery";
 
 function CommaSeparated({ items }: { items: ReactNode[] }) {
   return (

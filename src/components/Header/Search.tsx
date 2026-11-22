@@ -2,7 +2,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import { IconButton, Paper, TextField } from "@mui/material";
 import { type FormEvent, useState } from "react";
 
-import { useAppContext } from "../AppContext";
+import { useAppContext } from "@/context/AppContext";
 
 const Search = () => {
   const { setText, setIsOpenMenu, mobile } = useAppContext();

@@ -2,9 +2,9 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router";
 
-import App from "./App";
-import { AppContextProvider } from "./components/AppContext";
-import { PhotoInfoProvider } from "./components/Body/PhotoInfo/PhotoInfoContext";
+import App from "@/App";
+import { AppContextProvider } from "@/context/AppContext";
+import { PhotoInfoProvider } from "@/context/PhotoInfoContext";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {

@@ -3,7 +3,7 @@ import PauseIcon from "@mui/icons-material/Pause";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import { IconButton } from "@mui/material";
 
-import { useAppContext } from "../AppContext";
+import { useAppContext } from "@/context/AppContext";
 
 const Control = () => {
   const { setFullscreenPhotoId, isSlideShow, setIsSlideShow } = useAppContext();

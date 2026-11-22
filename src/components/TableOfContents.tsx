@@ -1,5 +1,5 @@
-import { places } from "../consts";
-import { useAppContext } from "./AppContext";
+import { places } from "@/config/gallery";
+import { useAppContext } from "@/context/AppContext";
 
 import "../styles/TableOfContents.css";
 

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
-import { places } from "../../consts";
-import type { Photo } from "../../types";
+import { places } from "@/config/gallery";
+import type { Photo } from "@/types/gallery";
 import PhotoGrid from "./PhotoGrid";
 
 interface PhotoGridByYearProps {

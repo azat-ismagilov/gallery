@@ -21,6 +21,7 @@
     "skipLibCheck": true,
     "types": ["vite/client", "bun"],
     "paths": {
+      "@/*": ["./src/*"],
       "@data/*": ["./data/*"]
     }
   },

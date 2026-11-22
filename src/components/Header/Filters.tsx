@@ -1,12 +1,12 @@
 import { Stack } from "@mui/material";
 
-import { places } from "../../consts";
-import calendarIcon from "../../images/calendar.svg";
-import eventIcon from "../../images/event.svg";
-import personIcon from "../../images/person.svg";
-import teamIcon from "../../images/team.svg";
-import type { Place } from "../../types";
-import { useAppContext } from "../AppContext";
+import calendarIcon from "@/assets/icons/calendar.svg";
+import eventIcon from "@/assets/icons/event.svg";
+import personIcon from "@/assets/icons/person.svg";
+import teamIcon from "@/assets/icons/team.svg";
+import { places } from "@/config/gallery";
+import { useAppContext } from "@/context/AppContext";
+import type { Place } from "@/types/gallery";
 import Search from "./Search";
 import Selector, { type SelectorOption } from "./Selector";
 

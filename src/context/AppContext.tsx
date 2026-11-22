@@ -8,9 +8,14 @@ import {
 } from "react";
 import { useSearchParams } from "react-router";
 
-import { DEFAULT_EVENT, LAST_YEAR } from "../consts";
-import type { AppQueryState } from "../types";
-import { getEventData, getPeopleData, getTeamData } from "../Util/DataLoader";
+import { DEFAULT_EVENT, LAST_YEAR } from "@/config/gallery";
+import {
+  getEventData,
+  getPeopleData,
+  getTeamData,
+} from "@/services/dataLoader";
+import type { AppQueryState } from "@/types/gallery";
+import { parseSearchParams, serializeSearchParams } from "@/utils/urlParams";
 
 const defaultContext: AppQueryState = {
   year: LAST_YEAR,
@@ -43,77 +48,6 @@ export interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-function parseSearchParams(
-  searchParams: URLSearchParams,
-): Partial<AppQueryState> {
-  const searchParamsData: Partial<AppQueryState> = {};
-  const photoParam = searchParams.get("photo");
-  if (photoParam !== null) {
-    searchParamsData.fullscreenPhotoId = photoParam;
-  }
-  const slideshowParam = searchParams.get("slideshow");
-  if (slideshowParam !== null) {
-    searchParamsData.slideShow = slideshowParam === "true";
-  }
-  const queryParam = searchParams.get("query");
-  if (queryParam !== null) {
-    searchParamsData.text = decodeURIComponent(queryParam);
-    searchParamsData.year = null;
-  } else {
-    const albumParam = searchParams.get("album");
-    if (albumParam !== null) {
-      searchParamsData.year = decodeURIComponent(albumParam);
-    }
-    const eventParam = searchParams.get("event");
-    const teamParam = searchParams.get("team");
-    const personParam = searchParams.get("person");
-    if (eventParam !== null) {
-      searchParamsData.event = decodeURIComponent(eventParam);
-    } else if (teamParam !== null) {
-      searchParamsData.team = decodeURIComponent(teamParam);
-    } else if (personParam !== null) {
-      searchParamsData.person = decodeURIComponent(personParam);
-    } else {
-      searchParamsData.event = DEFAULT_EVENT;
-    }
-  }
-  return searchParamsData;
-}
-
-function serializeSearchParams({
-  year,
-  event,
-  text,
-  person,
-  team,
-  fullscreenPhotoId,
-  slideShow,
-}: AppQueryState): Record<string, string> {
-  const searchParams: Record<string, string> = {};
-  if (year !== null) {
-    searchParams.album = year;
-  }
-  if (event !== null) {
-    searchParams.event = event;
-  }
-  if (person !== null) {
-    searchParams.person = person;
-  }
-  if (team !== null) {
-    searchParams.team = team;
-  }
-  if (text !== null) {
-    searchParams.query = text;
-  }
-  if (fullscreenPhotoId !== null) {
-    searchParams.photo = fullscreenPhotoId;
-  }
-  if (slideShow) {
-    searchParams.slideshow = "true";
-  }
-  return searchParams;
-}
-
 function attachYearIfNull(data: AppQueryState): AppQueryState {
   if (!data.year) {
     return { ...data, year: LAST_YEAR };
@@ -126,7 +60,7 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
   const [data, setData] = useState<AppQueryState>(() => ({
     ...defaultContext,
-    ...parseSearchParams(searchParams),
+    ...parseSearchParams(searchParams, DEFAULT_EVENT),
   }));
 
   const desktop = useMediaQuery("(min-width: 900px)");

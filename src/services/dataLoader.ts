@@ -1,5 +1,9 @@
-import { getRawEventData, getRawPeopleData, getRawTeamData } from "../consts";
-import UniqueList from "./UniqueList";
+import {
+  getRawEventData,
+  getRawPeopleData,
+  getRawTeamData,
+} from "@/config/gallery";
+import UniqueList from "@/utils/uniqueList";
 
 function parseLines(raw: string): string[] {
   return UniqueList(

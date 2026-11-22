@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { useAppContext } from "../components/AppContext";
-import { places, TAG_ALBUM } from "../consts";
-import type { FlickrSearchResponse, Photo } from "../types";
+import { places, TAG_ALBUM } from "@/config/gallery";
+import { useAppContext } from "@/context/AppContext";
 import {
   type ApiResponse,
   getAllWithEvent,
   getAllWithPerson,
   getAllWithTeam,
   getAllWithText,
-} from "./PhotoService";
-import UniqueList from "./UniqueList";
+} from "@/services/flickrApi";
+import type { FlickrSearchResponse, Photo } from "@/types/gallery";
+import UniqueList from "@/utils/uniqueList";
 
 function albumFromTags(tags: string): string {
   const albumTag = TAG_ALBUM.toLowerCase();

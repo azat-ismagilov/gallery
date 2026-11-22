@@ -2,13 +2,13 @@ import { Grid } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider } from "@mui/material/styles";
 
-import { useAppContext } from "./components/AppContext";
-import Body from "./components/Body/Body";
-import Header from "./components/Header/Header";
-import { DesktopLogo } from "./components/Logo";
-import Sidebar from "./components/Sidebar";
-import { description, title } from "./consts";
-import theme from "./theme";
+import Body from "@/components/Body/Body";
+import Header from "@/components/Header/Header";
+import { DesktopLogo } from "@/components/Logo";
+import Sidebar from "@/components/Sidebar";
+import { description, title } from "@/config/gallery";
+import theme from "@/config/theme";
+import { useAppContext } from "@/context/AppContext";
 
 import "./styles/App.css";
 

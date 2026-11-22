@@ -1,5 +1,5 @@
 import * as consts from "@data/consts.js";
-import type { Place } from "./types";
+import type { Place } from "@/types/gallery";
 
 const eventFiles = import.meta.glob<string>("@data/*.event", {
   query: "?raw",

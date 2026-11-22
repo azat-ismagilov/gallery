@@ -9,11 +9,11 @@ import { useEffect, useState } from "react";
 import ReactCrop, { type Crop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 
-import type { PersonTag, Photo } from "../../types";
-import { getPeopleData } from "../../Util/DataLoader";
-import { useAppContext } from "../AppContext";
+import { useAppContext } from "@/context/AppContext";
+import { usePhotoInfo } from "@/context/PhotoInfoContext";
+import { getPeopleData } from "@/services/dataLoader";
+import type { PersonTag, Photo } from "@/types/gallery";
 import FaceDiv from "./FaceDiv";
-import { usePhotoInfo } from "./PhotoInfo/PhotoInfoContext";
 
 import "../../styles/Body.css";
 
