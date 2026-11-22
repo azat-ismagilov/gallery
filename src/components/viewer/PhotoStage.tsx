@@ -15,8 +15,9 @@ import "react-image-crop/dist/ReactCrop.css";
 import { useAppContext } from "@/context/AppContext";
 import { usePhotoInfo } from "@/context/PhotoInfoContext";
 import { useSwipeNavigation } from "@/hooks/useSwipeNavigation";
-import type { PersonTag, Photo } from "@/types/gallery";
+import type { FaceDiffStatus, PersonTag, Photo } from "@/types/gallery";
 import { type Dimensions, fitDimensions } from "@/utils/imageFit";
+import { getDiffFaceEntries, getPersonTagKey } from "@/utils/suggestions";
 import FaceBox from "./FaceBox";
 
 const filterOptions = createFilterOptions<string>({ limit: 200 });
@@ -47,7 +48,15 @@ const PhotoStage = ({
   hideFaces = false,
 }: PhotoStageProps) => {
   const { people } = useAppContext();
-  const { photoInfo, editMode, face, setFace, appendPerson } = usePhotoInfo();
+  const {
+    photoInfo,
+    editMode,
+    isPreviewingSuggestion,
+    activeDiff,
+    face,
+    setFace,
+    appendPerson,
+  } = usePhotoInfo();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState<Dimensions>({
@@ -186,12 +195,23 @@ const PhotoStage = ({
             }}
           />
           {!hideFaces &&
-            photoInfo?.person.map((person) => (
+            (activeDiff && (editMode || isPreviewingSuggestion)
+              ? getDiffFaceEntries(activeDiff)
+              : (photoInfo?.person ?? []).map((person) => ({
+                  person,
+                  status: "unchanged" as FaceDiffStatus,
+                }))
+            ).map(({ person, status }) => (
               <FaceBox
                 person={person}
+                status={status}
                 setFace={setFace}
-                hidden={!editMode && face?.name !== person.name}
-                key={`${person.name}-${person.position?.top ?? "none"}-${person.position?.left ?? "none"}`}
+                hidden={
+                  !editMode &&
+                  !isPreviewingSuggestion &&
+                  face?.name !== person.name
+                }
+                key={`${status}-${getPersonTagKey(person)}`}
               />
             ))}
         </ReactCrop>

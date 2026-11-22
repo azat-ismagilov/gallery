@@ -1,6 +1,6 @@
 import { styled } from "@mui/material/styles";
 
-import type { PersonTag } from "@/types/gallery";
+import type { FaceDiffStatus, PersonTag } from "@/types/gallery";
 
 interface RectangleProps {
   top: number;
@@ -8,6 +8,7 @@ interface RectangleProps {
   left: number;
   right: number;
   hiddenBox: boolean;
+  diffStatus: FaceDiffStatus;
 }
 
 const Rectangle = styled("fieldset", {
@@ -16,34 +17,54 @@ const Rectangle = styled("fieldset", {
     prop !== "bottom" &&
     prop !== "left" &&
     prop !== "right" &&
-    prop !== "hiddenBox",
-})<RectangleProps>(({ top, bottom, left, right, hiddenBox, theme }) => ({
-  top: `${top * 100}%`,
-  bottom: `${100 - bottom * 100 - 3}%`,
-  left: `${left * 100}%`,
-  right: `${100 - right * 100}%`,
-  position: "absolute",
-  margin: 0,
-  color: theme.palette.warning.light,
-  padding: "2px 6px",
-  border: `2px solid ${theme.palette.warning.light}`,
-  borderRadius: theme.shape.borderRadius,
-  transform: "rotateX(180deg)",
-  opacity: hiddenBox ? 0 : 1,
-  transition: theme.transitions.create("opacity", { duration: 150 }),
-  pointerEvents: "auto",
-}));
+    prop !== "hiddenBox" &&
+    prop !== "diffStatus",
+})<RectangleProps>(
+  ({ top, bottom, left, right, hiddenBox, diffStatus, theme }) => {
+    const color =
+      diffStatus === "added"
+        ? theme.palette.success.light
+        : diffStatus === "removed"
+          ? theme.palette.error.light
+          : theme.palette.warning.light;
+
+    return {
+      top: `${top * 100}%`,
+      bottom: `${100 - bottom * 100 - 3}%`,
+      left: `${left * 100}%`,
+      right: `${100 - right * 100}%`,
+      position: "absolute",
+      margin: 0,
+      color,
+      padding: "2px 6px",
+      border: `2px ${diffStatus === "removed" ? "dashed" : "solid"} ${color}`,
+      borderRadius: theme.shape.borderRadius,
+      transform: "rotateX(180deg)",
+      opacity: hiddenBox ? 0 : 1,
+      transition: theme.transitions.create("opacity", { duration: 150 }),
+      pointerEvents: "auto",
+    };
+  },
+);
 
 interface FaceBoxProps {
   person: PersonTag;
   hidden: boolean;
+  status?: FaceDiffStatus;
   setFace: (person: PersonTag | null) => void;
 }
 
-const FaceBox = ({ person, hidden, setFace }: FaceBoxProps) => {
+const FaceBox = ({
+  person,
+  hidden,
+  status = "unchanged",
+  setFace,
+}: FaceBoxProps) => {
   if (!person.position) {
     return null;
   }
+
+  const prefix = status === "added" ? "+ " : status === "removed" ? "- " : "";
 
   return (
     <Rectangle
@@ -52,6 +73,7 @@ const FaceBox = ({ person, hidden, setFace }: FaceBoxProps) => {
       left={person.position.left}
       right={person.position.right}
       hiddenBox={hidden}
+      diffStatus={status}
       onMouseLeave={() => setFace(null)}
       onMouseEnter={() => setFace(person)}
     >
@@ -63,6 +85,7 @@ const FaceBox = ({ person, hidden, setFace }: FaceBoxProps) => {
           textShadow: "0 1px 3px rgba(0,0,0,0.9)",
         }}
       >
+        {prefix}
         {person.name}
       </legend>
     </Rectangle>

@@ -49,7 +49,7 @@ const PhotoViewer = ({
   onClose,
 }: PhotoViewerProps) => {
   const { desktop, isSlideShow, setIsSlideShow } = useAppContext();
-  const { editMode, setEditMode } = usePhotoInfo();
+  const { editMode, setEditMode, isPreviewingSuggestion } = usePhotoInfo();
 
   const [desktopInfoOpen, setDesktopInfoOpen] = useLocalStorageBoolean(
     DESKTOP_INFO_STORAGE_KEY,
@@ -59,12 +59,12 @@ const PhotoViewer = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
-  // Pause slideshow automatically if the user enters tag edit mode.
+  // Pause slideshow automatically if the user enters tag edit mode or opens a suggestion preview.
   useEffect(() => {
-    if (editMode && isSlideShow) {
+    if ((editMode || isPreviewingSuggestion) && isSlideShow) {
       setIsSlideShow(false);
     }
-  }, [editMode, isSlideShow, setIsSlideShow]);
+  }, [editMode, isPreviewingSuggestion, isSlideShow, setIsSlideShow]);
 
   // On mobile, reset scroll position back to the photo when switching photos.
   // biome-ignore lint/correctness/useExhaustiveDependencies: photo.id intentionally triggers scroll reset on mobile navigation
@@ -80,7 +80,7 @@ const PhotoViewer = ({
 
   useSlideshow({
     active: isSlideShow,
-    paused: editMode || isLoadingMore,
+    paused: editMode || isPreviewingSuggestion || isLoadingMore,
     totalItems,
     hasMore,
     resetKey: activeIndex ?? photo.id,
@@ -112,7 +112,9 @@ const PhotoViewer = ({
     }
   }, [desktop, setDesktopInfoOpen, handleScrollToMobileInfo]);
 
-  const showSidebar = !isSlideShow && (!desktop || desktopInfoOpen || editMode);
+  const showSidebar =
+    !isSlideShow &&
+    (!desktop || desktopInfoOpen || editMode || isPreviewingSuggestion);
   const showNavArrows = !isSlideShow && !editMode;
 
   return (

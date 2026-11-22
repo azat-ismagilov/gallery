@@ -1,3 +1,4 @@
+import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import EditIcon from "@mui/icons-material/Edit";
@@ -5,6 +6,10 @@ import EmailIcon from "@mui/icons-material/Email";
 import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import FaceIcon from "@mui/icons-material/Face";
+import KeyIcon from "@mui/icons-material/Key";
+import LinkIcon from "@mui/icons-material/Link";
+import RestoreIcon from "@mui/icons-material/Restore";
+import SaveIcon from "@mui/icons-material/Save";
 import {
   Alert,
   Autocomplete,
@@ -30,8 +35,14 @@ import {
 } from "@/config/gallery";
 import { useAppContext } from "@/context/AppContext";
 import { usePhotoInfo } from "@/context/PhotoInfoContext";
+import { useFlickrAuth } from "@/services/flickrAuthStore";
 import type { PersonTag, Photo } from "@/types/gallery";
 import { SerializePhotoInfo } from "@/utils/photoTags";
+import {
+  getPersonTagKey,
+  type ListDiff,
+  type PhotoInfoDiff,
+} from "@/utils/suggestions";
 
 interface MetadataSectionProps {
   label: string;
@@ -58,6 +69,108 @@ const MetadataSection = ({ label, children }: MetadataSectionProps) => (
   </Box>
 );
 
+function StringDiffSection({
+  label,
+  diff,
+}: {
+  label: string;
+  diff: ListDiff<string>;
+}) {
+  if (
+    diff.added.length === 0 &&
+    diff.removed.length === 0 &&
+    diff.unchanged.length === 0
+  ) {
+    return null;
+  }
+
+  return (
+    <MetadataSection label={label}>
+      {diff.unchanged.map((item) => (
+        <Chip key={`same-${item}`} label={item} size="small" />
+      ))}
+      {diff.added.map((item) => (
+        <Chip
+          key={`add-${item}`}
+          label={`+ ${item}`}
+          size="small"
+          color="success"
+        />
+      ))}
+      {diff.removed.map((item) => (
+        <Chip
+          key={`del-${item}`}
+          label={`- ${item}`}
+          size="small"
+          color="error"
+          variant="outlined"
+          sx={{ textDecoration: "line-through" }}
+        />
+      ))}
+    </MetadataSection>
+  );
+}
+
+function SuggestionDiffView({
+  diff,
+  setFace,
+}: {
+  diff: PhotoInfoDiff;
+  setFace: (person: PersonTag | null) => void;
+}) {
+  const hasPeople =
+    diff.person.added.length > 0 ||
+    diff.person.removed.length > 0 ||
+    diff.person.unchanged.length > 0;
+
+  return (
+    <Stack spacing={2}>
+      <StringDiffSection label="Photographer" diff={diff.photographer} />
+      <StringDiffSection label="Album" diff={diff.album} />
+      <StringDiffSection label="Event" diff={diff.event} />
+      <StringDiffSection label="Team" diff={diff.team} />
+      {hasPeople && (
+        <MetadataSection label="People">
+          {diff.person.unchanged.map((person) => (
+            <Chip
+              key={`same-${getPersonTagKey(person)}`}
+              label={person.name}
+              size="small"
+              icon={person.position ? <FaceIcon /> : undefined}
+              onMouseEnter={() => setFace(person)}
+              onMouseLeave={() => setFace(null)}
+            />
+          ))}
+          {diff.person.added.map((person) => (
+            <Chip
+              key={`add-${getPersonTagKey(person)}`}
+              label={`+ ${person.name}`}
+              size="small"
+              color="success"
+              icon={person.position ? <FaceIcon /> : undefined}
+              onMouseEnter={() => setFace(person)}
+              onMouseLeave={() => setFace(null)}
+            />
+          ))}
+          {diff.person.removed.map((person) => (
+            <Chip
+              key={`del-${getPersonTagKey(person)}`}
+              label={`- ${person.name}`}
+              size="small"
+              color="error"
+              variant="outlined"
+              icon={person.position ? <FaceIcon /> : undefined}
+              sx={{ textDecoration: "line-through" }}
+              onMouseEnter={() => setFace(person)}
+              onMouseLeave={() => setFace(null)}
+            />
+          ))}
+        </MetadataSection>
+      )}
+    </Stack>
+  );
+}
+
 export interface PhotoInfoSidebarProps {
   photo: Photo;
   desktop: boolean;
@@ -68,18 +181,22 @@ export interface PhotoInfoSidebarProps {
 }
 
 /**
- * Unified MUI photo details & tag-editing sidebar shared by desktop and mobile.
- *
- * - On desktop (Google Photos layout): rendered as a 360px right-hand sidebar.
- * - On mobile (Adobe Lightroom layout): rendered directly below the photo stage
- *   in the vertically scrollable viewer container.
+ * Unified MUI photo details, suggestion preview, and tag-editing sidebar
+ * shared by desktop (Google Photos right rail) and mobile (Adobe Lightroom
+ * scrollable bottom panel).
  */
 const PhotoInfoSidebar = forwardRef<HTMLDivElement, PhotoInfoSidebarProps>(
   ({ photo, desktop, onCloseSidebar, onFocusSidebar }, ref) => {
-    const { events, teams, selectFilter } = useAppContext();
+    const { events, teams, selectFilter, openSettings } = useAppContext();
+    const { isAuthenticated } = useFlickrAuth();
     const {
       photoInfo,
+      suggestedPhotoInfo,
+      isPreviewingSuggestion,
+      activeDiff,
       isLoading,
+      isSaving,
+      saveError,
       editMode,
       setEditMode,
       face,
@@ -89,23 +206,50 @@ const PhotoInfoSidebar = forwardRef<HTMLDivElement, PhotoInfoSidebarProps>(
       setAlbum,
       setPhotographer,
       setPerson,
+      resetDraft,
+      loadSuggestionIntoEditor,
+      dismissSuggestion,
+      buildSuggestionPreviewUrl,
+      saveToFlickr,
     } = usePhotoInfo();
 
-    const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
 
     const primaryAlbum = photoInfo?.album[0];
     const photoLink = `${FLICKR_IMAGE_PREFIX}${photo.id}`;
     const serializedTags = SerializePhotoInfo(photoInfo).join(", ");
+    const previewUrl = buildSuggestionPreviewUrl();
+
     const emailSubject = `Photo info update ${photo.id}`;
-    const emailBody = `Photo link: ${photoLink}\n\nGallery link: ${window.location.href}\n\nTags: ${serializedTags}`;
+    const emailBody = [
+      `Photo link: ${photoLink}`,
+      previewUrl
+        ? `Preview & approve link: ${previewUrl}`
+        : `Gallery link: ${window.location.href}`,
+      `Tags: ${serializedTags}`,
+    ].join("\n\n");
 
     const mailtoLink = `mailto:${SUGGESTIONS_EMAIL}?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
     const gmailLink = `https://mail.google.com/mail/u/0/?view=cm&fs=1&tf=1&to=${encodeURIComponent(SUGGESTIONS_EMAIL)}&su=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
 
     const handleCopyTags = () => {
       void navigator.clipboard.writeText(serializedTags);
-      setEditMode(false);
-      setSnackbarOpen(true);
+      setSnackbarMessage("Tags copied to clipboard");
+    };
+
+    const handleCopyPreviewLink = () => {
+      if (!previewUrl) {
+        return;
+      }
+      void navigator.clipboard.writeText(previewUrl);
+      setSnackbarMessage("Suggestion preview link copied to clipboard");
+    };
+
+    const handleSaveToFlickr = async (targetInfo = photoInfo ?? undefined) => {
+      const result = await saveToFlickr(targetInfo);
+      if (result.ok) {
+        setSnackbarMessage("Photo tags updated on Flickr");
+      }
     };
 
     const sortedPeople: PersonTag[] = photoInfo
@@ -158,12 +302,27 @@ const PhotoInfoSidebar = forwardRef<HTMLDivElement, PhotoInfoSidebarProps>(
           <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
             {!desktop && <ExpandLessIcon fontSize="small" color="action" />}
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              Info
+              {isPreviewingSuggestion ? "Suggested changes" : "Info"}
             </Typography>
           </Stack>
 
           <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-            {photoInfo && (
+            {isAuthenticated && (
+              <Tooltip title="Flickr write token active (Settings)">
+                <IconButton
+                  size="small"
+                  color="success"
+                  aria-label="Flickr settings"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openSettings();
+                  }}
+                >
+                  <KeyIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {photoInfo && !isPreviewingSuggestion && (
               <Tooltip title={editMode ? "Exit edit mode" : "Edit photo tags"}>
                 <IconButton
                   size="small"
@@ -211,12 +370,79 @@ const PhotoInfoSidebar = forwardRef<HTMLDivElement, PhotoInfoSidebarProps>(
             <Typography variant="body2" color="text.secondary">
               No metadata available for this photo.
             </Typography>
+          ) : isPreviewingSuggestion && activeDiff && suggestedPhotoInfo ? (
+            <Stack spacing={2}>
+              <Alert severity="info">
+                {activeDiff.hasChanges
+                  ? "Review the suggested additions (+) and removals (-) below."
+                  : "This suggestion matches the current photo tags."}
+              </Alert>
+
+              {saveError && <Alert severity="error">{saveError}</Alert>}
+
+              <SuggestionDiffView diff={activeDiff} setFace={setFace} />
+
+              <Divider />
+
+              <Stack spacing={1}>
+                {isAuthenticated ? (
+                  <Button
+                    variant="contained"
+                    color="success"
+                    startIcon={
+                      isSaving ? (
+                        <CircularProgress size={16} color="inherit" />
+                      ) : (
+                        <CheckIcon />
+                      )
+                    }
+                    disabled={isSaving || !activeDiff.hasChanges}
+                    onClick={() => {
+                      void handleSaveToFlickr(suggestedPhotoInfo);
+                    }}
+                    fullWidth
+                  >
+                    {isSaving ? "Applying to Flickr..." : "Approve & apply"}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outlined"
+                    startIcon={<KeyIcon />}
+                    onClick={openSettings}
+                    fullWidth
+                  >
+                    Add Flickr token to approve
+                  </Button>
+                )}
+
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<EditIcon />}
+                    onClick={loadSuggestionIntoEditor}
+                    fullWidth
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="inherit"
+                    onClick={dismissSuggestion}
+                    fullWidth
+                  >
+                    Dismiss
+                  </Button>
+                </Stack>
+              </Stack>
+            </Stack>
           ) : editMode ? (
             <Stack spacing={2}>
               <Typography variant="caption" color="text.secondary">
                 Edit tags below or drag a rectangle directly on the photo to tag
-                a face, then copy or email your suggested update.
+                a face.
               </Typography>
+
+              {saveError && <Alert severity="error">{saveError}</Alert>}
 
               <Autocomplete
                 multiple
@@ -224,7 +450,7 @@ const PhotoInfoSidebar = forwardRef<HTMLDivElement, PhotoInfoSidebarProps>(
                 value={photoInfo.person}
                 getOptionLabel={(option) => option.name}
                 isOptionEqualToValue={(a, b) =>
-                  a.name === b.name && a.position?.left === b.position?.left
+                  getPersonTagKey(a) === getPersonTagKey(b)
                 }
                 onChange={(_event, newValue) => setPerson(newValue)}
                 renderInput={(params) => (
@@ -302,17 +528,75 @@ const PhotoInfoSidebar = forwardRef<HTMLDivElement, PhotoInfoSidebarProps>(
                 )}
               />
 
+              {activeDiff?.hasChanges && (
+                <Paper
+                  variant="outlined"
+                  sx={{ p: 1.5, bgcolor: "background.paper" }}
+                >
+                  <Stack
+                    direction="row"
+                    sx={{
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      mb: 1,
+                    }}
+                  >
+                    <Typography variant="subtitle2">Preview changes</Typography>
+                    <Button
+                      size="small"
+                      startIcon={<RestoreIcon />}
+                      onClick={resetDraft}
+                    >
+                      Reset
+                    </Button>
+                  </Stack>
+                  <SuggestionDiffView diff={activeDiff} setFace={setFace} />
+                </Paper>
+              )}
+
               <Divider />
 
               <Stack spacing={1}>
+                {isAuthenticated && (
+                  <Button
+                    variant="contained"
+                    color="success"
+                    startIcon={
+                      isSaving ? (
+                        <CircularProgress size={16} color="inherit" />
+                      ) : (
+                        <SaveIcon />
+                      )
+                    }
+                    disabled={isSaving || !activeDiff?.hasChanges}
+                    onClick={() => {
+                      void handleSaveToFlickr(photoInfo);
+                    }}
+                    fullWidth
+                  >
+                    {isSaving ? "Saving to Flickr..." : "Save to Flickr"}
+                  </Button>
+                )}
+
                 <Button
-                  variant="contained"
+                  variant={isAuthenticated ? "outlined" : "contained"}
+                  startIcon={<LinkIcon />}
+                  disabled={!previewUrl}
+                  onClick={handleCopyPreviewLink}
+                  fullWidth
+                >
+                  Copy suggestion preview link
+                </Button>
+
+                <Button
+                  variant="outlined"
                   startIcon={<ContentCopyIcon />}
                   onClick={handleCopyTags}
                   fullWidth
                 >
-                  Copy tags to clipboard
+                  Copy raw tags
                 </Button>
+
                 <Stack direction="row" spacing={1}>
                   <Button
                     variant="outlined"
@@ -406,7 +690,7 @@ const PhotoInfoSidebar = forwardRef<HTMLDivElement, PhotoInfoSidebarProps>(
                     const isHighlighted = face?.name === person.name;
                     return (
                       <Chip
-                        key={`${person.name}-${person.position?.left ?? "none"}`}
+                        key={getPersonTagKey(person)}
                         label={person.name}
                         size="small"
                         icon={person.position ? <FaceIcon /> : undefined}
@@ -431,16 +715,16 @@ const PhotoInfoSidebar = forwardRef<HTMLDivElement, PhotoInfoSidebarProps>(
         </Box>
 
         <Snackbar
-          open={snackbarOpen}
-          autoHideDuration={2000}
-          onClose={() => setSnackbarOpen(false)}
+          open={snackbarMessage !== null}
+          autoHideDuration={2500}
+          onClose={() => setSnackbarMessage(null)}
         >
           <Alert
-            onClose={() => setSnackbarOpen(false)}
+            onClose={() => setSnackbarMessage(null)}
             severity="success"
             variant="filled"
           >
-            New tags copied to clipboard
+            {snackbarMessage}
           </Alert>
         </Snackbar>
       </Paper>
