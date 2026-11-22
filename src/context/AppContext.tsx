@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import { DEFAULT_EVENT, LAST_YEAR } from "@/config/gallery";
 import {
@@ -36,6 +36,18 @@ const galleryDefaults = {
   defaultEvent: DEFAULT_EVENT,
 };
 
+function isSettingsUrl(
+  pathname: string,
+  hash: string,
+  searchParams: URLSearchParams,
+): boolean {
+  return (
+    searchParams.get("settings") === "true" ||
+    hash.toLowerCase() === "#settings" ||
+    pathname.endsWith("/settings")
+  );
+}
+
 export type { FilterSelection };
 
 export interface AppContextValue {
@@ -47,8 +59,12 @@ export interface AppContextValue {
   setTeam: (newTeam: string) => void;
   selectFilter: (filter: FilterSelection) => void;
   setFullscreenPhotoId: (newFullscreenPhotoId: string | null) => void;
+  setSuggestion: (encoded: string | null) => void;
   isSlideShow: boolean;
   setIsSlideShow: (newIsSlideShow: boolean) => void;
+  isSettingsOpen: boolean;
+  openSettings: () => void;
+  closeSettings: () => void;
   isOpenMenu: boolean;
   setIsOpenMenu: (open: boolean) => void;
   desktop: boolean;
@@ -62,11 +78,23 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 const AppContextProvider = ({ children }: { children: ReactNode }) => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [data, setData] = useState<AppQueryState>(() => ({
     ...createDefaultGalleryState(galleryDefaults),
     ...parseSearchParams(searchParams, DEFAULT_EVENT),
   }));
+
+  const [isSettingsOpen, setIsSettingsOpen] = useState(() =>
+    isSettingsUrl(location.pathname, location.hash, searchParams),
+  );
+
+  useEffect(() => {
+    if (isSettingsUrl(location.pathname, location.hash, searchParams)) {
+      setIsSettingsOpen(true);
+    }
+  }, [location.pathname, location.hash, searchParams]);
 
   const desktop = useMediaQuery("(min-width: 900px)");
   const mobile = !desktop;
@@ -82,6 +110,9 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const nextParams = serializeSearchParams(data);
+    if (isSettingsOpen) {
+      nextParams.settings = "true";
+    }
     const nextSearch = new URLSearchParams(nextParams).toString();
     const currentSearch = searchParams.toString();
     const nextFilterKey = getGalleryFilterKey(data);
@@ -91,7 +122,28 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
     if (nextSearch !== currentSearch) {
       setSearchParams(nextParams, { replace: !filterChanged });
     }
-  }, [data, searchParams, setSearchParams]);
+  }, [data, isSettingsOpen, searchParams, setSearchParams]);
+
+  const openSettings = useCallback(() => {
+    setIsSettingsOpen(true);
+  }, []);
+
+  const closeSettings = useCallback(() => {
+    setIsSettingsOpen(false);
+    const nextParams = serializeSearchParams(data);
+    const nextSearch = new URLSearchParams(nextParams).toString();
+    const nextPath = location.pathname.endsWith("/settings")
+      ? location.pathname.slice(0, -"/settings".length) || "/"
+      : location.pathname;
+    void navigate(
+      {
+        pathname: nextPath,
+        search: nextSearch ? `?${nextSearch}` : "",
+        hash: "",
+      },
+      { replace: true },
+    );
+  }, [data, location.pathname, navigate]);
 
   const setYear = useCallback((newYear: string) => {
     setData(applyYearFilter(newYear, galleryDefaults));
@@ -124,11 +176,24 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
       setData((prevState) =>
         prevState.fullscreenPhotoId === newFullscreenPhotoId
           ? prevState
-          : { ...prevState, fullscreenPhotoId: newFullscreenPhotoId },
+          : {
+              ...prevState,
+              fullscreenPhotoId: newFullscreenPhotoId,
+              // Clear active suggestion when closing or switching to another photo.
+              suggestion: null,
+            },
       );
     },
     [],
   );
+
+  const setSuggestion = useCallback((encoded: string | null) => {
+    setData((prevState) =>
+      prevState.suggestion === encoded
+        ? prevState
+        : { ...prevState, suggestion: encoded },
+    );
+  }, []);
 
   const setIsSlideShow = useCallback((newIsSlideShow: boolean) => {
     setData((prevState) =>
@@ -172,8 +237,12 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
       setTeam,
       selectFilter,
       setFullscreenPhotoId,
+      setSuggestion,
       isSlideShow,
       setIsSlideShow,
+      isSettingsOpen,
+      openSettings,
+      closeSettings,
       isOpenMenu,
       setIsOpenMenu,
       desktop,
@@ -191,8 +260,12 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
       setTeam,
       selectFilter,
       setFullscreenPhotoId,
+      setSuggestion,
       isSlideShow,
       setIsSlideShow,
+      isSettingsOpen,
+      openSettings,
+      closeSettings,
       isOpenMenu,
       desktop,
       mobile,

@@ -1,6 +1,7 @@
 import { Grid } from "@mui/material";
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider } from "@mui/material/styles";
+import { lazy, Suspense } from "react";
 
 import GalleryBody from "@/components/gallery/GalleryBody";
 import Header from "@/components/layout/Header";
@@ -12,8 +13,12 @@ import { useAppContext } from "@/context/AppContext";
 
 import "./styles/App.css";
 
+const FlickrSettingsDialog = lazy(
+  () => import("@/components/settings/FlickrSettingsDialog"),
+);
+
 function App() {
-  const { desktop } = useAppContext();
+  const { desktop, isSettingsOpen, closeSettings } = useAppContext();
 
   return (
     <ThemeProvider theme={theme}>
@@ -51,6 +56,11 @@ function App() {
           <GalleryBody />
         </Grid>
       </Grid>
+      {isSettingsOpen && (
+        <Suspense fallback={null}>
+          <FlickrSettingsDialog open={isSettingsOpen} onClose={closeSettings} />
+        </Suspense>
+      )}
     </ThemeProvider>
   );
 }
