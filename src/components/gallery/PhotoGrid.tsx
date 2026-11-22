@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import type { GalleryPhotoItem } from "@/types/gallery";
 
 interface PhotoGridProps {
@@ -5,7 +7,7 @@ interface PhotoGridProps {
   onSelect: (flatIndex: number) => void;
 }
 
-export default function PhotoGrid({ items, onSelect }: PhotoGridProps) {
+const PhotoGrid = memo(function PhotoGrid({ items, onSelect }: PhotoGridProps) {
   return (
     <div className="masonry">
       {items.map((item) => (
@@ -28,10 +30,13 @@ export default function PhotoGrid({ items, onSelect }: PhotoGridProps) {
               src={item.photo.url_preview}
               alt={`Gallery ${item.photo.id}`}
               loading="lazy"
+              decoding="async"
             />
           </button>
         </figure>
       ))}
     </div>
   );
-}
+});
+
+export default PhotoGrid;

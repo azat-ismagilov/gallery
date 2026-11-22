@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 
+import { prefetchPhotoInfo } from "@/services/flickrApi";
 import type { GalleryPhotoItem } from "@/types/gallery";
 
 /**
- * Preloads adjacent full-resolution images so Next/Prev and slideshow
- * transitions appear instantaneously.
+ * Preloads adjacent full-resolution images and prefetches neighbor photo
+ * metadata so Next/Prev and slideshow transitions appear instantaneously.
  */
 export function useImagePreload(
   items: readonly GalleryPhotoItem[],
@@ -15,21 +16,25 @@ export function useImagePreload(
       return;
     }
 
-    const candidateIndices = [
-      activeIndex + 1,
-      activeIndex + 2,
-      activeIndex - 1,
-    ];
+    const imageIndices = [activeIndex + 1, activeIndex + 2, activeIndex - 1];
     const images: HTMLImageElement[] = [];
 
-    for (const idx of candidateIndices) {
-      const url = items[idx]?.photo.url;
-      if (!url) {
+    for (const idx of imageIndices) {
+      const photo = items[idx]?.photo;
+      if (!photo?.url) {
         continue;
       }
       const img = new Image();
-      img.src = url;
+      img.src = photo.url;
       images.push(img);
+    }
+
+    // Prefetch Flickr metadata for immediate neighbors so sidebar & face tags load in 0ms.
+    for (const idx of [activeIndex + 1, activeIndex - 1]) {
+      const id = items[idx]?.photo.id;
+      if (id) {
+        prefetchPhotoInfo(id);
+      }
     }
 
     return () => {

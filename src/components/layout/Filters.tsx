@@ -1,4 +1,5 @@
 import { Stack } from "@mui/material";
+import { useCallback, useMemo } from "react";
 
 import calendarIcon from "@/assets/icons/calendar.svg";
 import eventIcon from "@/assets/icons/event.svg";
@@ -21,6 +22,8 @@ function formatYearOption(items: readonly Place[]): SelectorOption[] {
   }));
 }
 
+const yearOptions: SelectorOption[] = formatYearOption(places);
+
 const Filters = () => {
   const {
     data,
@@ -34,23 +37,42 @@ const Filters = () => {
     teams,
   } = useAppContext();
 
-  function selectItem(
-    item: SelectorOption | "clear" | null,
-    setter: (value: string) => void,
-  ) {
-    if (item === "clear" || item === null) {
-      if (data.year) {
-        setYear(data.year);
+  const selectItem = useCallback(
+    (
+      item: SelectorOption | "clear" | null,
+      setter: (value: string) => void,
+    ) => {
+      if (item === "clear" || item === null) {
+        if (data.year) {
+          setYear(data.year);
+        }
+      } else {
+        setter(item.data);
       }
-    } else {
-      setter(item.data);
-    }
-  }
+    },
+    [data.year, setYear],
+  );
 
-  const yearOptions = formatYearOption(places);
-  const eventOptions = formatOptions(events);
-  const teamOptions = formatOptions(teams);
-  const personOptions = formatOptions(people);
+  const eventOptions = useMemo(() => formatOptions(events), [events]);
+  const teamOptions = useMemo(() => formatOptions(teams), [teams]);
+  const personOptions = useMemo(() => formatOptions(people), [people]);
+
+  const selectedYear = useMemo(
+    () => yearOptions.find((o) => o.data === data.year) ?? null,
+    [data.year],
+  );
+  const selectedEvent = useMemo(
+    () => eventOptions.find((o) => o.data === data.event) ?? null,
+    [eventOptions, data.event],
+  );
+  const selectedTeam = useMemo(
+    () => teamOptions.find((o) => o.data === data.team) ?? null,
+    [teamOptions, data.team],
+  );
+  const selectedPerson = useMemo(
+    () => personOptions.find((o) => o.data === data.person) ?? null,
+    [personOptions, data.person],
+  );
 
   return (
     <Stack direction={desktop ? "row" : "column"} spacing={desktop ? 1 : 0.5}>
@@ -64,7 +86,7 @@ const Filters = () => {
               setYear(selectedItem.data);
             }
           }}
-          value={yearOptions.find((o) => o.data === data.year) ?? null}
+          value={selectedYear}
           disableClearable
         />
       )}
@@ -75,7 +97,7 @@ const Filters = () => {
         onChange={(selectedItem) => {
           selectItem(selectedItem, setEvent);
         }}
-        value={eventOptions.find((o) => o.data === data.event) ?? null}
+        value={selectedEvent}
       />
       <FilterSelector
         options={teamOptions}
@@ -84,7 +106,7 @@ const Filters = () => {
         onChange={(selectedItem) => {
           selectItem(selectedItem, setTeam);
         }}
-        value={teamOptions.find((o) => o.data === data.team) ?? null}
+        value={selectedTeam}
       />
       <FilterSelector
         options={personOptions}
@@ -93,7 +115,7 @@ const Filters = () => {
         onChange={(selectedItem) => {
           selectItem(selectedItem, setPerson);
         }}
-        value={personOptions.find((o) => o.data === data.person) ?? null}
+        value={selectedPerson}
       />
       <SearchBar />
     </Stack>

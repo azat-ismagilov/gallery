@@ -1,7 +1,6 @@
 import { Box, Typography } from "@mui/material";
-import { useCallback, useRef } from "react";
+import { lazy, Suspense, useCallback, useRef } from "react";
 
-import PhotoViewer from "@/components/viewer/PhotoViewer";
 import { useAppContext } from "@/context/AppContext";
 import { usePhotoInfo } from "@/context/PhotoInfoContext";
 import { useGalleryNavigation } from "@/hooks/useGalleryNavigation";
@@ -11,6 +10,8 @@ import usePhotoLoader from "@/hooks/usePhotoLoader";
 import PhotoGrid from "./PhotoGrid";
 
 import "@/styles/Body.css";
+
+const PhotoViewer = lazy(() => import("@/components/viewer/PhotoViewer"));
 
 const GalleryBody = () => {
   const { data, setFullscreenPhotoId, isSlideShow, setIsSlideShow, desktop } =
@@ -83,18 +84,20 @@ const GalleryBody = () => {
         <Typography variant="h1">No photo</Typography>
       )}
       {activePhoto !== null && (
-        <PhotoViewer
-          photo={activePhoto}
-          activeIndex={activeIndex}
-          totalItems={items.length}
-          hasMore={hasMore}
-          isLoadingMore={isLoading}
-          hasPrev={hasPrev}
-          hasNext={hasNext}
-          onPrev={goPrev}
-          onNext={goNext}
-          onClose={close}
-        />
+        <Suspense fallback={null}>
+          <PhotoViewer
+            photo={activePhoto}
+            activeIndex={activeIndex}
+            totalItems={items.length}
+            hasMore={hasMore}
+            isLoadingMore={isLoading}
+            hasPrev={hasPrev}
+            hasNext={hasNext}
+            onPrev={goPrev}
+            onNext={goNext}
+            onClose={close}
+          />
+        </Suspense>
       )}
     </div>
   );

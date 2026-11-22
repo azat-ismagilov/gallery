@@ -24,8 +24,18 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: (id) => {
-          if (id.includes("react")) {
-            return "r";
+          if (
+            id.includes("node_modules/react/") ||
+            id.includes("node_modules/react-dom/") ||
+            id.includes("node_modules/react-router/")
+          ) {
+            return "react-vendor";
+          }
+          if (
+            id.includes("node_modules/@mui/") ||
+            id.includes("node_modules/@emotion/")
+          ) {
+            return "mui-vendor";
           }
           return undefined;
         },

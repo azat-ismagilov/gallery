@@ -2,8 +2,11 @@ import useMediaQuery from "@mui/material/useMediaQuery";
 import {
   createContext,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
+  useRef,
   useState,
 } from "react";
 import { useSearchParams } from "react-router";
@@ -27,6 +30,13 @@ const defaultContext: AppQueryState = {
   slideShow: false,
 };
 
+export interface FilterSelection {
+  year?: string | null;
+  event?: string | null;
+  team?: string | null;
+  person?: string | null;
+}
+
 export interface AppContextValue {
   data: AppQueryState;
   setYear: (newYear: string) => void;
@@ -34,12 +44,7 @@ export interface AppContextValue {
   setText: (newText: string) => void;
   setPerson: (newPerson: string) => void;
   setTeam: (newTeam: string) => void;
-  selectFilter: (filter: {
-    year?: string | null;
-    event?: string | null;
-    team?: string | null;
-    person?: string | null;
-  }) => void;
+  selectFilter: (filter: FilterSelection) => void;
   setFullscreenPhotoId: (newFullscreenPhotoId: string | null) => void;
   isSlideShow: boolean;
   setIsSlideShow: (newIsSlideShow: boolean) => void;
@@ -61,6 +66,10 @@ function attachYearIfNull(data: AppQueryState): AppQueryState {
   return data;
 }
 
+function getFilterKey(state: AppQueryState): string {
+  return `${state.year ?? ""}|${state.event ?? ""}|${state.team ?? ""}|${state.person ?? ""}|${state.text ?? ""}`;
+}
+
 const AppContextProvider = ({ children }: { children: ReactNode }) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -73,6 +82,7 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
   const mobile = !desktop;
 
   const [isOpenMenu, setIsOpenMenu] = useState(desktop);
+  const prevFilterKeyRef = useRef<string>(getFilterKey(data));
 
   const isSlideShow = data.slideShow;
 
@@ -80,19 +90,31 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
     setIsOpenMenu(desktop);
   }, [desktop]);
 
+  // Synchronize app query state to URL search params.
+  // Use `replace: true` when only the viewer photo/slideshow changed so stepping
+  // through photos or running a slideshow does not pollute browser Back history.
   useEffect(() => {
-    setSearchParams(serializeSearchParams(data));
-  }, [data, setSearchParams]);
+    const nextParams = serializeSearchParams(data);
+    const nextSearch = new URLSearchParams(nextParams).toString();
+    const currentSearch = searchParams.toString();
+    const nextFilterKey = getFilterKey(data);
+    const filterChanged = nextFilterKey !== prevFilterKeyRef.current;
+    prevFilterKeyRef.current = nextFilterKey;
 
-  const setYear = (newYear: string) => {
+    if (nextSearch !== currentSearch) {
+      setSearchParams(nextParams, { replace: !filterChanged });
+    }
+  }, [data, searchParams, setSearchParams]);
+
+  const setYear = useCallback((newYear: string) => {
     setData({
       ...defaultContext,
       year: newYear,
       event: DEFAULT_EVENT,
     });
-  };
+  }, []);
 
-  const setText = (newText: string) => {
+  const setText = useCallback((newText: string) => {
     setData((prevState) => ({
       ...prevState,
       year: null,
@@ -101,9 +123,9 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
       person: null,
       team: null,
     }));
-  };
+  }, []);
 
-  const setEvent = (newEvent: string) => {
+  const setEvent = useCallback((newEvent: string) => {
     setData((prevState) =>
       attachYearIfNull({
         ...prevState,
@@ -113,9 +135,9 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
         team: null,
       }),
     );
-  };
+  }, []);
 
-  const setPerson = (newPerson: string) => {
+  const setPerson = useCallback((newPerson: string) => {
     setData((prevState) =>
       attachYearIfNull({
         ...prevState,
@@ -125,9 +147,9 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
         team: null,
       }),
     );
-  };
+  }, []);
 
-  const setTeam = (newTeam: string) => {
+  const setTeam = useCallback((newTeam: string) => {
     setData((prevState) =>
       attachYearIfNull({
         ...prevState,
@@ -137,14 +159,9 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
         team: newTeam,
       }),
     );
-  };
+  }, []);
 
-  const selectFilter = (filter: {
-    year?: string | null;
-    event?: string | null;
-    team?: string | null;
-    person?: string | null;
-  }) => {
+  const selectFilter = useCallback((filter: FilterSelection) => {
     setData((prevState) => {
       const targetYear = filter.year ?? prevState.year ?? LAST_YEAR;
       const hasSpecific =
@@ -157,21 +174,26 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
         person: filter.person ?? null,
       };
     });
-  };
+  }, []);
 
-  const setFullscreenPhotoId = (newFullscreenPhotoId: string | null) => {
-    setData((prevState) => ({
-      ...prevState,
-      fullscreenPhotoId: newFullscreenPhotoId,
-    }));
-  };
+  const setFullscreenPhotoId = useCallback(
+    (newFullscreenPhotoId: string | null) => {
+      setData((prevState) =>
+        prevState.fullscreenPhotoId === newFullscreenPhotoId
+          ? prevState
+          : { ...prevState, fullscreenPhotoId: newFullscreenPhotoId },
+      );
+    },
+    [],
+  );
 
-  const setIsSlideShow = (newIsSlideShow: boolean) => {
-    setData((prevState) => ({
-      ...prevState,
-      slideShow: newIsSlideShow,
-    }));
-  };
+  const setIsSlideShow = useCallback((newIsSlideShow: boolean) => {
+    setData((prevState) =>
+      prevState.slideShow === newIsSlideShow
+        ? prevState
+        : { ...prevState, slideShow: newIsSlideShow },
+    );
+  }, []);
 
   const [events, setEvents] = useState<string[]>([]);
   const [people, setPeople] = useState<string[]>([]);
@@ -180,20 +202,14 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let isCancelled = false;
 
-    void getEventData(data.year).then((eventsData) => {
+    void Promise.all([
+      getEventData(data.year),
+      getPeopleData(data.year),
+      getTeamData(data.year),
+    ]).then(([eventsData, peopleData, teamData]) => {
       if (!isCancelled) {
         setEvents(eventsData);
-      }
-    });
-
-    void getPeopleData(data.year).then((peopleData) => {
-      if (!isCancelled) {
         setPeople(peopleData);
-      }
-    });
-
-    void getTeamData(data.year).then((teamData) => {
-      if (!isCancelled) {
         setTeams(teamData);
       }
     });
@@ -203,31 +219,47 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [data.year]);
 
-  return (
-    <AppContext.Provider
-      value={{
-        data,
-        setYear,
-        setEvent,
-        setText,
-        setPerson,
-        setTeam,
-        selectFilter,
-        setFullscreenPhotoId,
-        isSlideShow,
-        setIsSlideShow,
-        isOpenMenu,
-        setIsOpenMenu,
-        desktop,
-        mobile,
-        events,
-        people,
-        teams,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+  const value = useMemo<AppContextValue>(
+    () => ({
+      data,
+      setYear,
+      setEvent,
+      setText,
+      setPerson,
+      setTeam,
+      selectFilter,
+      setFullscreenPhotoId,
+      isSlideShow,
+      setIsSlideShow,
+      isOpenMenu,
+      setIsOpenMenu,
+      desktop,
+      mobile,
+      events,
+      people,
+      teams,
+    }),
+    [
+      data,
+      setYear,
+      setEvent,
+      setText,
+      setPerson,
+      setTeam,
+      selectFilter,
+      setFullscreenPhotoId,
+      isSlideShow,
+      setIsSlideShow,
+      isOpenMenu,
+      desktop,
+      mobile,
+      events,
+      people,
+      teams,
+    ],
   );
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
 const useAppContext = (): AppContextValue => {

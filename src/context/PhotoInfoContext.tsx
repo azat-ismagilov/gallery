@@ -1,13 +1,15 @@
 import {
   createContext,
   type ReactNode,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
 import { useAppContext } from "@/context/AppContext";
-import { getPhotoInfo } from "@/services/flickrApi";
+import { getCachedPhotoInfo, getPhotoInfo } from "@/services/flickrApi";
 import type { PersonTag, PhotoInfo } from "@/types/gallery";
 import { ParsePhotoInfo } from "@/utils/photoTags";
 
@@ -39,15 +41,26 @@ const PhotoInfoProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const fullscreenPhotoId = data.fullscreenPhotoId;
-    setPhotoInfo(null);
     setFace(null);
     setEditMode(false);
 
     if (fullscreenPhotoId === null) {
+      setPhotoInfo(null);
       setIsLoading(false);
       return;
     }
 
+    // Hydrate instantaneously when metadata was already cached or prefetched.
+    const cached = getCachedPhotoInfo(fullscreenPhotoId);
+    if (cached) {
+      const tags = cached.photo?.tags?.tag?.map((tag) => tag.raw);
+      const description = cached.photo?.description?._content;
+      setPhotoInfo(ParsePhotoInfo(tags, description));
+      setIsLoading(false);
+      return;
+    }
+
+    setPhotoInfo(null);
     const controller = new AbortController();
     setIsLoading(true);
 
@@ -71,52 +84,66 @@ const PhotoInfoProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [data.fullscreenPhotoId]);
 
-  function setEvent(newEvents: string[]) {
+  const setEvent = useCallback((newEvents: string[]) => {
     setPhotoInfo((prev) => (prev ? { ...prev, event: newEvents } : prev));
-  }
+  }, []);
 
-  function setPerson(newPerson: PersonTag[]) {
+  const setPerson = useCallback((newPerson: PersonTag[]) => {
     setPhotoInfo((prev) => (prev ? { ...prev, person: newPerson } : prev));
-  }
+  }, []);
 
-  function appendPerson(newPerson: PersonTag) {
+  const appendPerson = useCallback((newPerson: PersonTag) => {
     setPhotoInfo((prev) =>
       prev ? { ...prev, person: [...prev.person, newPerson] } : prev,
     );
-  }
+  }, []);
 
-  function setAlbum(newAlbum: string[]) {
+  const setAlbum = useCallback((newAlbum: string[]) => {
     setPhotoInfo((prev) => (prev ? { ...prev, album: newAlbum } : prev));
-  }
+  }, []);
 
-  function setPhotographer(newPhotographer: string[]) {
+  const setPhotographer = useCallback((newPhotographer: string[]) => {
     setPhotoInfo((prev) =>
       prev ? { ...prev, photographer: newPhotographer } : prev,
     );
-  }
+  }, []);
 
-  function setTeam(newTeam: string[]) {
+  const setTeam = useCallback((newTeam: string[]) => {
     setPhotoInfo((prev) => (prev ? { ...prev, team: newTeam } : prev));
-  }
+  }, []);
+
+  const value = useMemo<PhotoInfoContextValue>(
+    () => ({
+      photoInfo,
+      isLoading,
+      setPhotoInfo,
+      editMode,
+      setEditMode,
+      face,
+      setFace,
+      setEvent,
+      setPerson,
+      setAlbum,
+      setTeam,
+      setPhotographer,
+      appendPerson,
+    }),
+    [
+      photoInfo,
+      isLoading,
+      editMode,
+      face,
+      setEvent,
+      setPerson,
+      setAlbum,
+      setTeam,
+      setPhotographer,
+      appendPerson,
+    ],
+  );
 
   return (
-    <PhotoInfoContext.Provider
-      value={{
-        photoInfo,
-        isLoading,
-        setPhotoInfo,
-        editMode,
-        setEditMode,
-        face,
-        setFace,
-        setEvent,
-        setPerson,
-        setAlbum,
-        setTeam,
-        setPhotographer,
-        appendPerson,
-      }}
-    >
+    <PhotoInfoContext.Provider value={value}>
       {children}
     </PhotoInfoContext.Provider>
   );
